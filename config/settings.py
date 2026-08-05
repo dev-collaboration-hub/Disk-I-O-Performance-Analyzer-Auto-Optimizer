@@ -11,5 +11,14 @@ SHOW_CONSOLE_OUTPUT = True
 TOP_PROCESS_LIMIT = 5
 MINIMUM_PROCESS_IO_BYTES = 1
 
+# M3 history, timeline, and spike-detection defaults.
+HISTORY_FILE = "logs/metrics_history.jsonl"
+EVENT_TIMELINE_FILE = "logs/event_timeline.jsonl"
+HISTORY_RETENTION_RECORDS = 10_000
+EVENT_RETENTION_RECORDS = 5_000
+SPIKE_USAGE_DELTA_PERCENT = 20.0
+SPIKE_IO_MULTIPLIER = 3.0
+SPIKE_IO_MIN_BYTES_PER_SECOND = 1_048_576.0
+
 # Backward-compatible name used by earlier versions.
 REFRESH_INTERVAL = REFRESH_INTERVAL_SECONDS

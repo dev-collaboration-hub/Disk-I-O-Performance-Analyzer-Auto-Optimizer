@@ -1,4 +1,4 @@
-"""Real-time command-line dashboard for M1 and M2 disk metrics."""
+"""Real-time command-line dashboard for M1-M3 disk monitoring."""
 
 from __future__ import annotations
 
@@ -7,16 +7,25 @@ import time
 from collections.abc import Callable
 from typing import Any
 
+from analysis.timeline_builder import EventTimeline, build_timeline_events
 from config.settings import (
     CRITICAL_DISK_USAGE_PERCENT,
+    EVENT_RETENTION_RECORDS,
+    EVENT_TIMELINE_FILE,
+    HISTORY_FILE,
+    HISTORY_RETENTION_RECORDS,
     IO_SAMPLE_INTERVAL_SECONDS,
     MINIMUM_PROCESS_IO_BYTES,
     REFRESH_INTERVAL_SECONDS,
+    SPIKE_IO_MIN_BYTES_PER_SECOND,
+    SPIKE_IO_MULTIPLIER,
+    SPIKE_USAGE_DELTA_PERCENT,
     TOP_PROCESS_LIMIT,
     WARNING_DISK_USAGE_PERCENT,
 )
 from monitoring.metrics_snapshot import create_snapshot
 from utils.formatter import format_size
+from utils.history_manager import HistoryManager
 from utils.logger import MonitoringLogger
 
 
@@ -30,6 +39,42 @@ def usage_status(usage_percent: float) -> str:
     if usage_percent >= WARNING_DISK_USAGE_PERCENT:
         return "WARNING"
     return "NORMAL"
+
+
+def persist_snapshot_history(
+    snapshot: dict[str, Any],
+    history: HistoryManager,
+    timeline: EventTimeline,
+    *,
+    usage_delta_threshold: float = SPIKE_USAGE_DELTA_PERCENT,
+    io_multiplier: float = SPIKE_IO_MULTIPLIER,
+    io_minimum_bytes_per_second: float = SPIKE_IO_MIN_BYTES_PER_SECOND,
+) -> list[dict[str, Any]]:
+    """Persist one snapshot and its derived M3 events."""
+
+    previous = history.latest_snapshot()
+    events = build_timeline_events(
+        previous,
+        snapshot,
+        usage_delta_threshold=usage_delta_threshold,
+        io_multiplier=io_multiplier,
+        io_minimum_bytes_per_second=io_minimum_bytes_per_second,
+    )
+    record_number = history.count() + 1
+    snapshot["history"] = {
+        "enabled": True,
+        "record_number": record_number,
+        "events_recorded": len(events),
+        "spikes_detected": sum(
+            "SPIKE" in event["event_type"] for event in events
+        ),
+        "recent_events": events[-3:],
+        "history_file": str(history.history_file),
+        "event_file": str(timeline.event_file),
+    }
+    history.save_snapshot(snapshot)
+    timeline.record_events(events)
+    return events
 
 
 def _render_processes(snapshot: dict[str, Any]) -> list[str]:
@@ -56,30 +101,46 @@ def _render_processes(snapshot: dict[str, Any]) -> list[str]:
                 f"{format_size(process['total_bytes_per_second']):>13} "
                 f"{process['io_share_percent']:>7.2f}%"
             )
-
     lines.append(
         "Accessible processes: "
         f"{process_data.get('accessible_after', 0)} | "
-        f"Matched across sample: {process_data.get('matched', 0)} | "
+        f"Matched: {process_data.get('matched', 0)} | "
         f"Active: {process_data.get('active', 0)}"
     )
     return lines
 
 
-def render_dashboard(snapshot: dict[str, Any]) -> str:
-    """Render a monitoring snapshot as a readable console dashboard."""
+def _render_history(snapshot: dict[str, Any]) -> list[str]:
+    history = snapshot.get("history", {})
+    if not history.get("enabled", False):
+        return ["", "Historical data collection: disabled"]
 
     lines = [
+        "",
+        "M3 Historical Data & Event Timeline",
+        "-" * 94,
+        f"History record : {history.get('record_number', 0)}",
+        f"Events recorded: {history.get('events_recorded', 0)} | "
+        f"Spikes detected: {history.get('spikes_detected', 0)}",
+    ]
+    for event in history.get("recent_events", []):
+        lines.append(
+            f"{event.get('severity', 'INFO'):<8} | "
+            f"{event.get('event_type')} | {event.get('message')}"
+        )
+    return lines
+
+
+def render_dashboard(snapshot: dict[str, Any]) -> str:
+    lines = [
         "=" * 94,
-        "DISK I/O PERFORMANCE ANALYZER — M2 PROCESS MONITORING DASHBOARD",
+        "DISK I/O PERFORMANCE ANALYZER — M3 HISTORICAL MONITORING DASHBOARD",
         "=" * 94,
         f"Timestamp: {snapshot['timestamp']}",
     ]
-
     disks = snapshot.get("disks", [])
     if not disks:
         lines.extend(["", "No accessible disks were detected."])
-
     for disk in disks:
         usage = float(disk["usage_percent"])
         lines.extend(
@@ -105,20 +166,28 @@ def render_dashboard(snapshot: dict[str, Any]) -> str:
             f"Write Operations : {io_stats['write_count']:,}",
             f"Bytes Read       : {format_size(io_stats['read_bytes'])}",
             f"Bytes Written    : {format_size(io_stats['write_bytes'])}",
-            f"Read Rate        : {format_size(io_stats['read_bytes_per_second'])}/s",
-            f"Write Rate       : {format_size(io_stats['write_bytes_per_second'])}/s",
+            (
+                "Read Rate        : "
+                f"{format_size(io_stats['read_bytes_per_second'])}/s"
+            ),
+            (
+                "Write Rate       : "
+                f"{format_size(io_stats['write_bytes_per_second'])}/s"
+            ),
             f"Read IOPS        : {io_stats['read_operations_per_second']:.2f}",
             f"Write IOPS       : {io_stats['write_operations_per_second']:.2f}",
         ]
     )
     lines.extend(_render_processes(snapshot))
+    lines.extend(_render_history(snapshot))
 
     errors = snapshot.get("errors", [])
     if errors:
         lines.extend(["", "Collection Warnings", "-" * 94])
         for error in errors:
-            lines.append(f"{error['path']}: {error['error']} — {error['message']}")
-
+            lines.append(
+                f"{error['path']}: {error['error']} — {error['message']}"
+            )
     lines.append("=" * 94)
     return "\n".join(lines)
 
@@ -133,20 +202,37 @@ def run_dashboard(
     include_processes: bool = True,
     log_file: str | None = None,
     enable_logging: bool = True,
+    history_file: str = HISTORY_FILE,
+    event_file: str = EVENT_TIMELINE_FILE,
+    enable_history: bool = True,
+    history_retention: int = HISTORY_RETENTION_RECORDS,
+    event_retention: int = EVENT_RETENTION_RECORDS,
+    spike_usage_delta: float = SPIKE_USAGE_DELTA_PERCENT,
+    spike_io_multiplier: float = SPIKE_IO_MULTIPLIER,
+    spike_io_minimum_rate: float = SPIKE_IO_MIN_BYTES_PER_SECOND,
     clear_between_updates: bool = True,
     once: bool = False,
     output: Callable[[str], None] = print,
 ) -> None:
-    """Run the live dashboard until interrupted, or once when requested."""
-
     if refresh_interval < 0 or io_sample_interval < 0:
         raise ValueError("refresh and sample intervals must be non-negative")
-    if process_limit < 0:
-        raise ValueError("process_limit must be non-negative")
+    if process_limit < 0 or history_retention < 0 or event_retention < 0:
+        raise ValueError("limits and retention values must be non-negative")
 
     logger = MonitoringLogger(log_file) if log_file else MonitoringLogger()
+    history = HistoryManager(history_file, max_records=history_retention)
+    timeline = EventTimeline(event_file, max_records=event_retention)
     if enable_logging:
-        logger.log_event("M2 disk and process monitoring started")
+        logger.log_event("M3 historical disk monitoring started")
+    if enable_history:
+        timeline.record_event(
+            {
+                "event_type": "MONITORING_STARTED",
+                "severity": "INFO",
+                "source": "cli_dashboard",
+                "message": "M3 historical disk monitoring started.",
+            }
+        )
 
     try:
         while True:
@@ -158,13 +244,36 @@ def run_dashboard(
                 process_limit=process_limit,
                 minimum_process_io_bytes=minimum_process_io_bytes,
             )
+            if enable_history:
+                try:
+                    persist_snapshot_history(
+                        snapshot,
+                        history,
+                        timeline,
+                        usage_delta_threshold=spike_usage_delta,
+                        io_multiplier=spike_io_multiplier,
+                        io_minimum_bytes_per_second=spike_io_minimum_rate,
+                    )
+                except (OSError, TypeError, ValueError) as error:
+                    snapshot.setdefault("errors", []).append(
+                        {
+                            "path": str(history.history_file),
+                            "error": type(error).__name__,
+                            "message": f"History persistence failed: {error}",
+                        }
+                    )
+                    snapshot["history"] = {
+                        "enabled": False,
+                        "error": str(error),
+                    }
+            else:
+                snapshot["history"] = {"enabled": False}
+
             if enable_logging:
                 logger.log_snapshot(snapshot)
-
             if clear_between_updates:
                 clear_screen()
             output(render_dashboard(snapshot))
-
             if once:
                 break
 
@@ -174,5 +283,14 @@ def run_dashboard(
                 time.sleep(remaining)
     except KeyboardInterrupt:
         if enable_logging:
-            logger.log_event("M2 monitoring stopped by user")
+            logger.log_event("M3 monitoring stopped by user")
+        if enable_history:
+            timeline.record_event(
+                {
+                    "event_type": "MONITORING_STOPPED",
+                    "severity": "INFO",
+                    "source": "cli_dashboard",
+                    "message": "M3 monitoring stopped by user.",
+                }
+            )
         output("\nMonitoring stopped.")

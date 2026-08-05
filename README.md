@@ -1,26 +1,29 @@
 # Disk I/O Performance Analyzer & Auto Optimizer
 
-A cross-platform diagnostics project for monitoring disk capacity, system-wide
-I/O, and the processes currently generating disk activity.
+A cross-platform diagnostics project for monitoring disk capacity, system-wide I/O, active process disk consumers, and historical disk activity.
 
 ## Milestone status
 
 - **M1 — Disk Monitoring Foundation: complete**
 - **M2 — Process-Level Disk Analysis: complete**
+- **M3 — Historical Data Collection: complete**
 
-M2 adds:
+M3 adds:
 
-- safe process enumeration
-- cumulative per-process read/write counters
-- sampled per-process throughput and IOPS
-- PID-reuse-safe process matching
-- top current disk-consumer ranking
-- process share percentages
-- integrated dashboard and standalone process report
-- M1 regression tests and M2 integration tests
+- append-only metrics history
+- structured event timeline
+- configurable retention
+- corrupt/partial record recovery
+- capacity-utilization and throughput spike detection
+- disk status and top-consumer transition events
+- integrated historical dashboard section
+- standalone history report
 
-See [`docs/M1_COMPLETION.md`](docs/M1_COMPLETION.md) and
-[`docs/M2_COMPLETION.md`](docs/M2_COMPLETION.md).
+Completion reports:
+
+- [`docs/M1_COMPLETION.md`](docs/M1_COMPLETION.md)
+- [`docs/M2_COMPLETION.md`](docs/M2_COMPLETION.md)
+- [`docs/M3_COMPLETION.md`](docs/M3_COMPLETION.md)
 
 ## Quick start
 
@@ -29,76 +32,97 @@ python -m pip install -r requirements.txt
 python main.py
 ```
 
-One snapshot:
+One snapshot without clearing the terminal:
 
 ```bash
 python main.py --once --no-clear
 ```
 
-Show more process consumers:
+Use custom M3 history files:
 
 ```bash
-python main.py --once --no-clear --process-limit 10
+python main.py --once --no-clear \
+  --history-file logs/my-history.jsonl \
+  --event-file logs/my-events.jsonl
 ```
 
-Disable process collection and show only M1 metrics:
+Disable historical persistence:
 
 ```bash
-python main.py --once --no-clear --hide-processes
+python main.py --once --no-clear --no-history
 ```
 
-Standalone process report:
+Inspect historical activity:
+
+```bash
+python -m reporting.history_report --limit 20
+```
+
+Machine-readable historical report:
+
+```bash
+python -m reporting.history_report --json
+```
+
+Standalone current process report:
 
 ```bash
 python -m reporting.process_report --limit 10 --sample-interval 1
 ```
 
-Use `python main.py --help` for all options.
+Use `python main.py --help` for process, retention, logging, and spike-threshold options.
 
 ## Tests
 
 ```bash
 python -m unittest discover -s tests -v
+python -m compileall -q .
 ```
 
 ## Project structure
 
 ```text
 .
-├── analysis/                       # Later analysis milestones
-├── config/settings.py              # Runtime defaults
+├── analysis/
+│   ├── spike_detector.py            # Capacity and I/O spike detection
+│   └── timeline_builder.py          # Structured persistent event timeline
+├── config/settings.py               # M1-M3 runtime defaults
 ├── docs/
 │   ├── M1_COMPLETION.md
-│   └── M2_COMPLETION.md
-├── logs/                            # Generated JSONL monitoring logs
+│   ├── M2_COMPLETION.md
+│   └── M3_COMPLETION.md
+├── logs/                             # Runtime JSONL files
 ├── monitoring/
 │   ├── disk_capacity.py
 │   ├── disk_detector.py
 │   ├── disk_monitor.py
 │   ├── disk_stats.py
-│   ├── metrics_snapshot.py          # Shared system/process sample window
-│   ├── process_detector.py          # Process enumeration
-│   ├── process_io_monitor.py        # Per-process counters and rates
-│   └── top_disk_consumers.py        # Current-activity ranking
+│   ├── metrics_snapshot.py           # Versioned unified snapshot
+│   ├── process_detector.py
+│   ├── process_io_monitor.py
+│   └── top_disk_consumers.py
 ├── reporting/
-│   ├── cli_dashboard.py             # Integrated M2 dashboard
-│   └── process_report.py            # Standalone process report
+│   ├── cli_dashboard.py              # Integrated M3 dashboard
+│   ├── history_report.py             # Historical report CLI
+│   └── process_report.py
 ├── tests/
 │   ├── test_m1_integration.py
-│   └── test_m2_integration.py
+│   ├── test_m2_integration.py
+│   └── test_m3_integration.py
+├── utils/
+│   ├── history_manager.py            # Crash-tolerant JSONL store
+│   └── logger.py
 ├── main.py
 └── requirements.txt
 ```
 
-## How M2 identifies a top consumer
+## How M3 history works
 
-Process I/O counters are cumulative. Ranking those lifetime totals would make an
-old process look busy even when it is currently idle. M2 records counters before
-and after one sampling window, calculates non-negative deltas, then ranks the
-processes by bytes transferred during that window.
+Each monitoring cycle creates a versioned snapshot containing disk metrics, system I/O rates, and process-level activity. M3 appends this snapshot to `metrics_history.jsonl`; it does not rewrite the complete history on every cycle.
 
-Processes are matched using both PID and creation time so a reused PID cannot
-inherit another process's counters.
+Before storing a new snapshot, M3 compares it with the most recent stored snapshot. Meaningful changes become structured events in `event_timeline.jsonl`, including spikes, threshold transitions, collection warnings, and top disk-consumer changes.
+
+Malformed or incomplete JSONL records are skipped during reads, so an interrupted final write does not make earlier history unusable. Retention limits prevent indefinite growth.
 
 ## Roadmap
 
@@ -118,11 +142,14 @@ inherit another process's counters.
 - Dashboard and process report
 - Integration testing
 
-### M3 — Historical Data Collection
+### M3 — Historical Data Collection ✅
 
 - Metrics history
 - Event timeline
 - Disk spike recording
+- Retention and recovery
+- Historical report
+- Integration testing
 
 ### M4 — Root Cause Detection Engine
 
@@ -168,6 +195,7 @@ inherit another process's counters.
 - Python 3.10+
 - `psutil`
 - `unittest`
+- Standard-library JSONL persistence
 
 ## License
 

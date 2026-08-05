@@ -1,4 +1,4 @@
-"""Unified M1 and M2 monitoring snapshot collection."""
+"""Unified M1, M2, and M3-ready monitoring snapshot collection."""
 
 from __future__ import annotations
 
@@ -28,7 +28,7 @@ def create_snapshot(
     sleeper: Callable[[float], None] | None = None,
     clock: Callable[[], float] | None = None,
 ) -> dict[str, Any]:
-    """Collect disk and process metrics in one shared sampling window."""
+    """Collect a versioned disk and process snapshot in one sample window."""
 
     if io_sample_interval < 0:
         raise ValueError("io_sample_interval must be non-negative")
@@ -73,6 +73,7 @@ def create_snapshot(
     )
 
     return {
+        "schema_version": 3,
         "timestamp": datetime.now(timezone.utc).isoformat(),
         "disks": disks,
         "io": io_stats,
@@ -90,7 +91,3 @@ def create_snapshot(
         },
         "errors": errors,
     }
-
-
-if __name__ == "__main__":
-    print(create_snapshot())
