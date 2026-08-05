@@ -1,6 +1,6 @@
-from cause_classifier import classify_process
-from confidence_engine import calculate_confidence
-from bottleneck_detector import detect_bottleneck
+from analysis.cause_classifier import classify_process
+from analysis.confidence_engine import calculate_confidence
+from analysis.bottleneck_detector import detect_bottleneck
 
 
 def generate_root_cause_report(

@@ -1,6 +1,7 @@
-from disk_capacity import get_disk_capacity
-from disk_stats import get_disk_usage_percentage
-from disk_monitor import get_disk_io_stats
+from monitoring.disk_capacity import get_disk_capacity
+from monitoring.disk_stats import get_disk_usage_percentage
+from monitoring.disk_monitor import get_disk_io_stats
+
 
 def run_test():
     print("Testing Disk Capacity...")
@@ -13,6 +14,7 @@ def run_test():
     print(get_disk_io_stats())
 
     print("\nM1 Integration Test Passed!")
+
 
 if __name__ == "__main__":
     run_test()

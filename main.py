@@ -1,17 +1,19 @@
 import time
 
-from config import (
+from config.settings import (
     REFRESH_INTERVAL,
     WARNING_DISK_USAGE_PERCENT,
     CRITICAL_DISK_USAGE_PERCENT,
 )
 
-from disk_detector import get_mounted_partitions
-from disk_capacity import get_disk_capacity
-from disk_monitor import get_disk_io_stats
-from disk_stats import get_disk_usage
-from logger import log_event
-from formatter import format_bytes
+from monitoring.disk_detector import (
+    get_mounted_disks as get_mounted_partitions,
+)
+from monitoring.disk_capacity import get_disk_capacity
+from monitoring.disk_monitor import get_disk_io_stats
+from monitoring.disk_stats import get_disk_usage
+from utils.logger import log_event
+from utils.formatter import format_size as format_bytes
 
 
 def display_disk_information():

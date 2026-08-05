@@ -1,4 +1,4 @@
-from top_disk_consumers import get_top_disk_consumers
+from monitoring.top_disk_consumers import get_top_disk_consumers
 
 
 def get_risk_level(percentage):
