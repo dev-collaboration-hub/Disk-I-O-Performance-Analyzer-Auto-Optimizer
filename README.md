@@ -1,23 +1,26 @@
 # Disk I/O Performance Analyzer & Auto Optimizer
 
-A cross-platform system diagnostics project for monitoring disk capacity, utilization, and I/O activity, with later milestones for process analysis, root-cause detection, recommendations, and safe optimization.
+A cross-platform diagnostics project for monitoring disk capacity, system-wide
+I/O, and the processes currently generating disk activity.
 
 ## Milestone status
 
-**M1 — Disk Monitoring Foundation: complete**
+- **M1 — Disk Monitoring Foundation: complete**
+- **M2 — Process-Level Disk Analysis: complete**
 
-M1 includes:
+M2 adds:
 
-- mounted disk discovery
-- total, used, and free space monitoring
-- disk utilization percentage
-- cumulative read/write bytes and operation counts
-- sampled read/write throughput and IOPS
-- structured JSON Lines logging
-- live and one-shot CLI dashboard
-- automated unit and end-to-end integration tests
+- safe process enumeration
+- cumulative per-process read/write counters
+- sampled per-process throughput and IOPS
+- PID-reuse-safe process matching
+- top current disk-consumer ranking
+- process share percentages
+- integrated dashboard and standalone process report
+- M1 regression tests and M2 integration tests
 
-See [`docs/M1_COMPLETION.md`](docs/M1_COMPLETION.md) for the acceptance report.
+See [`docs/M1_COMPLETION.md`](docs/M1_COMPLETION.md) and
+[`docs/M2_COMPLETION.md`](docs/M2_COMPLETION.md).
 
 ## Quick start
 
@@ -26,25 +29,31 @@ python -m pip install -r requirements.txt
 python main.py
 ```
 
-Run one snapshot without clearing the terminal:
+One snapshot:
 
 ```bash
 python main.py --once --no-clear
 ```
 
-Monitor a particular path:
+Show more process consumers:
 
 ```bash
-python main.py --path / --once --no-clear
+python main.py --once --no-clear --process-limit 10
 ```
 
-Windows example:
+Disable process collection and show only M1 metrics:
 
-```powershell
-python main.py --path C:\ --once --no-clear
+```bash
+python main.py --once --no-clear --hide-processes
 ```
 
-Use `python main.py --help` for all options, including refresh interval, I/O sampling interval, logging controls, and custom log paths.
+Standalone process report:
+
+```bash
+python -m reporting.process_report --limit 10 --sample-interval 1
+```
+
+Use `python main.py --help` for all options.
 
 ## Tests
 
@@ -56,51 +65,40 @@ python -m unittest discover -s tests -v
 
 ```text
 .
-├── analysis/                  # Later analysis milestones
-├── config/
-│   └── settings.py            # Runtime defaults and thresholds
+├── analysis/                       # Later analysis milestones
+├── config/settings.py              # Runtime defaults
 ├── docs/
-│   └── M1_COMPLETION.md        # M1 delivery and acceptance report
-├── logs/                       # Generated JSONL monitoring logs
+│   ├── M1_COMPLETION.md
+│   └── M2_COMPLETION.md
+├── logs/                            # Generated JSONL monitoring logs
 ├── monitoring/
-│   ├── disk_capacity.py        # Total, used, and free bytes
-│   ├── disk_detector.py        # Mounted disk discovery
-│   ├── disk_monitor.py         # Cumulative I/O and sampled rates
-│   ├── disk_stats.py           # Utilization percentage
-│   └── metrics_snapshot.py     # Unified M1 snapshot collection
+│   ├── disk_capacity.py
+│   ├── disk_detector.py
+│   ├── disk_monitor.py
+│   ├── disk_stats.py
+│   ├── metrics_snapshot.py          # Shared system/process sample window
+│   ├── process_detector.py          # Process enumeration
+│   ├── process_io_monitor.py        # Per-process counters and rates
+│   └── top_disk_consumers.py        # Current-activity ranking
 ├── reporting/
-│   └── cli_dashboard.py        # Live terminal dashboard
+│   ├── cli_dashboard.py             # Integrated M2 dashboard
+│   └── process_report.py            # Standalone process report
 ├── tests/
-│   └── test_m1_integration.py  # Unit and end-to-end tests
-├── utils/
-│   ├── formatter.py            # Human-readable byte formatting
-│   └── logger.py               # Structured JSONL logging
-├── main.py                     # CLI entry point
+│   ├── test_m1_integration.py
+│   └── test_m2_integration.py
+├── main.py
 └── requirements.txt
 ```
 
-## M1 output
+## How M2 identifies a top consumer
 
-```text
-========================================================================
-DISK I/O PERFORMANCE ANALYZER — M1 MONITORING DASHBOARD
-========================================================================
-Disk: C:\
-Status      : NORMAL
-Usage       : 42.5%
-Total Space : 476.94 GiB
-Used Space  : 202.70 GiB
-Free Space  : 274.24 GiB
+Process I/O counters are cumulative. Ranking those lifetime totals would make an
+old process look busy even when it is currently idle. M2 records counters before
+and after one sampling window, calculates non-negative deltas, then ranks the
+processes by bytes transferred during that window.
 
-System-wide Disk I/O
-Read Operations  : 15,420
-Write Operations : 12,340
-Bytes Read       : 1.25 GiB
-Bytes Written    : 850.00 MiB
-Read Rate        : 24.20 MiB/s
-Write Rate       : 8.10 MiB/s
-========================================================================
-```
+Processes are matched using both PID and creation time so a reused PID cannot
+inherit another process's counters.
 
 ## Roadmap
 
@@ -112,11 +110,13 @@ Write Rate       : 8.10 MiB/s
 - CLI dashboard
 - Integration testing
 
-### M2 — Process-Level Disk Analysis
+### M2 — Process-Level Disk Analysis ✅
 
 - Process enumeration
 - Per-process disk I/O tracking
 - Top consumer identification
+- Dashboard and process report
+- Integration testing
 
 ### M3 — Historical Data Collection
 

@@ -31,11 +31,7 @@ def _counter_value(counter: Any, name: str) -> int:
 
 
 def get_disk_io_stats() -> DiskIOStats:
-    """Return cumulative system-wide disk read/write counters.
-
-    A zero-filled result is returned when the operating system does not expose
-    disk I/O counters, allowing the dashboard to remain operational.
-    """
+    """Return cumulative system-wide disk read/write counters."""
 
     counter = psutil.disk_io_counters()
     if counter is None:
@@ -59,9 +55,30 @@ def get_disk_io_stats() -> DiskIOStats:
 
 
 def _non_negative_delta(current: int, previous: int) -> int:
-    # Counters can reset after reboot or device changes. Negative rates are not
-    # meaningful, so treat a reset as a fresh counter window.
     return max(0, current - previous)
+
+
+def calculate_disk_io_rates(
+    before: DiskIOStats,
+    after: DiskIOStats,
+    elapsed_seconds: float,
+) -> DiskIORates:
+    """Calculate system-wide throughput and IOPS from two counter snapshots."""
+
+    elapsed = max(float(elapsed_seconds), 1e-9)
+    read_bytes_delta = _non_negative_delta(after["read_bytes"], before["read_bytes"])
+    write_bytes_delta = _non_negative_delta(after["write_bytes"], before["write_bytes"])
+    read_count_delta = _non_negative_delta(after["read_count"], before["read_count"])
+    write_count_delta = _non_negative_delta(after["write_count"], before["write_count"])
+
+    return {
+        **after,
+        "sample_seconds": elapsed,
+        "read_bytes_per_second": read_bytes_delta / elapsed,
+        "write_bytes_per_second": write_bytes_delta / elapsed,
+        "read_operations_per_second": read_count_delta / elapsed,
+        "write_operations_per_second": write_count_delta / elapsed,
+    }
 
 
 def sample_disk_io_rates(
@@ -83,21 +100,7 @@ def sample_disk_io_rates(
     if interval_seconds:
         sleeper(interval_seconds)
     after = get_disk_io_stats()
-    elapsed = max(clock() - started_at, 1e-9)
-
-    read_bytes_delta = _non_negative_delta(after["read_bytes"], before["read_bytes"])
-    write_bytes_delta = _non_negative_delta(after["write_bytes"], before["write_bytes"])
-    read_count_delta = _non_negative_delta(after["read_count"], before["read_count"])
-    write_count_delta = _non_negative_delta(after["write_count"], before["write_count"])
-
-    return {
-        **after,
-        "sample_seconds": elapsed,
-        "read_bytes_per_second": read_bytes_delta / elapsed,
-        "write_bytes_per_second": write_bytes_delta / elapsed,
-        "read_operations_per_second": read_count_delta / elapsed,
-        "write_operations_per_second": write_count_delta / elapsed,
-    }
+    return calculate_disk_io_rates(before, after, clock() - started_at)
 
 
 if __name__ == "__main__":

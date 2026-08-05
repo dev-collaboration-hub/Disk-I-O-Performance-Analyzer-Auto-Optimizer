@@ -1,63 +1,81 @@
-from monitoring.process_io_monitor import get_process_io_stats
+"""Ranking helpers for current process-level disk I/O activity."""
+
+from __future__ import annotations
+
+from monitoring.process_io_monitor import ProcessIORates, sample_process_io_rates
 
 
-def get_top_disk_consumers(limit=10):
-    """
-    Returns the top disk-consuming processes based on
-    total read + write bytes.
-    """
+class TopDiskConsumer(ProcessIORates):
+    io_share_percent: float
+    percentage: float
 
-    processes = get_process_io_stats()
 
-    for process in processes:
-        process["total_io_bytes"] = (
-            process["read_bytes"] +
-            process["write_bytes"]
+def rank_process_io(
+    process_rates: list[ProcessIORates],
+    *,
+    limit: int = 10,
+    minimum_io_bytes: int = 1,
+) -> list[TopDiskConsumer]:
+    """Rank processes by bytes transferred during the sample window."""
+
+    if limit < 0:
+        raise ValueError("limit must be non-negative")
+    if minimum_io_bytes < 0:
+        raise ValueError("minimum_io_bytes must be non-negative")
+    if limit == 0:
+        return []
+
+    active = [
+        item
+        for item in process_rates
+        if item["total_io_bytes_delta"] >= minimum_io_bytes
+    ]
+    active.sort(
+        key=lambda item: (
+            item["total_io_bytes_delta"],
+            item["write_bytes_delta"],
+            item["read_bytes_delta"],
+            -item["pid"],
+        ),
+        reverse=True,
+    )
+
+    total_active_bytes = sum(item["total_io_bytes_delta"] for item in active)
+    ranked: list[TopDiskConsumer] = []
+
+    for item in active[:limit]:
+        share = (
+            (item["total_io_bytes_delta"] / total_active_bytes) * 100
+            if total_active_bytes
+            else 0.0
         )
-
-    total_system_io = sum(
-        process["total_io_bytes"]
-        for process in processes
-    )
-
-    if total_system_io == 0:
-        total_system_io = 1
-
-    processes.sort(
-        key=lambda process: process["total_io_bytes"],
-        reverse=True
-    )
-
-    top_processes = []
-
-    for process in processes[:limit]:
-        percentage = (
-            process["total_io_bytes"] /
-            total_system_io
-        ) * 100
-
-        top_processes.append(
+        ranked.append(
             {
-                "pid": process["pid"],
-                "name": process["name"],
-                "read_bytes": process["read_bytes"],
-                "write_bytes": process["write_bytes"],
-                "total_io_bytes": process["total_io_bytes"],
-                "percentage": round(percentage, 2),
+                **item,
+                "io_share_percent": round(share, 2),
+                "percentage": round(share, 2),
             }
         )
 
-    return top_processes
+    return ranked
+
+
+def get_top_disk_consumers(
+    limit: int = 10,
+    *,
+    sample_interval: float = 1.0,
+    minimum_io_bytes: int = 1,
+) -> list[TopDiskConsumer]:
+    """Sample process I/O and return the most active disk consumers."""
+
+    rates = sample_process_io_rates(sample_interval)
+    return rank_process_io(
+        rates,
+        limit=limit,
+        minimum_io_bytes=minimum_io_bytes,
+    )
 
 
 if __name__ == "__main__":
-    consumers = get_top_disk_consumers()
-
-    print("Top Disk Consumers")
-    print("-" * 70)
-
-    for process in consumers:
-        print(
-            f"{process['name']:<25} "
-            f"{process['percentage']:>6}%"
-        )
+    for process in get_top_disk_consumers():
+        print(process)
