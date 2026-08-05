@@ -20,6 +20,35 @@ The goal is not only to show disk usage metrics but also to explain *why* disk u
 
 ---
 
+# Project Structure
+
+```text
+.
+├── analysis/       # Bottleneck, spike, confidence, and cause analysis
+├── config/         # Project settings
+├── monitoring/     # Disk and process monitoring modules
+├── reporting/      # CLI and root-cause reports
+├── tests/          # Integration tests
+├── utils/          # Formatting, history, and logging helpers
+├── main.py         # Main application entry point
+└── README.md
+```
+
+Run the main application from the repository root:
+
+```bash
+python main.py
+```
+
+Individual modules can be run with Python's module syntax, for example:
+
+```bash
+python -m reporting.process_report
+python -m monitoring.metrics_snapshot
+```
+
+---
+
 # Objectives
 
 * Monitor system-wide disk activity
@@ -245,7 +274,12 @@ Disk Usage:
 
 # Technologies
 
-Planned Technologies:
+Current implementation:
+
+* Python
+* psutil
+
+Planned technologies may include:
 
 * C++
 * Windows API

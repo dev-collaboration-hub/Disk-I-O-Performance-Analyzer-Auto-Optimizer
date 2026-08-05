@@ -1,4 +1,4 @@
-from process_io_monitor import get_process_io_stats
+from monitoring.process_io_monitor import get_process_io_stats
 
 
 def get_top_disk_consumers(limit=10):

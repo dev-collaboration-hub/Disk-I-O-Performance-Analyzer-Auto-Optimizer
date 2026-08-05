@@ -1,8 +1,8 @@
 from datetime import datetime
 
-from disk_stats import get_disk_usage
-from disk_monitor import get_disk_io_stats
-from top_disk_consumers import get_top_disk_consumers
+from monitoring.disk_stats import get_disk_usage
+from monitoring.disk_monitor import get_disk_io_stats
+from monitoring.top_disk_consumers import get_top_disk_consumers
 
 
 def create_snapshot(path="/", top_process_limit=5):
