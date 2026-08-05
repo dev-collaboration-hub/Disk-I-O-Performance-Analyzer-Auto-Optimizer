@@ -1,21 +1,11 @@
-"""
-Project Configuration
-"""
+"""Runtime configuration for the disk monitoring application."""
 
-# Monitoring Settings
-REFRESH_INTERVAL = 1  # seconds
-
-# Log Settings
-LOG_FILE = "disk.log"
-
-# Disk Usage Thresholds
-WARNING_DISK_USAGE_PERCENT = 80
-CRITICAL_DISK_USAGE_PERCENT = 95
-
-# Display Settings
+REFRESH_INTERVAL_SECONDS = 2.0
+IO_SAMPLE_INTERVAL_SECONDS = 1.0
+LOG_FILE = "logs/disk_monitor.jsonl"
+WARNING_DISK_USAGE_PERCENT = 80.0
+CRITICAL_DISK_USAGE_PERCENT = 95.0
 SHOW_CONSOLE_OUTPUT = True
 
-# Future Features
-ENABLE_HISTORY = False
-ENABLE_ALERTS = False
-ENABLE_AUTO_OPTIMIZATION = False
+# Backward-compatible name used by earlier versions.
+REFRESH_INTERVAL = REFRESH_INTERVAL_SECONDS

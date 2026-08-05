@@ -1,307 +1,174 @@
-# Disk-I-O-Performance-Analyzer-Auto-Optimizer
+# Disk I/O Performance Analyzer & Auto Optimizer
 
-A system diagnostics and optimization tool designed to identify the root causes of excessive disk activity, analyze process-level disk usage, and provide intelligent recommendations to reduce disk bottlenecks.
+A cross-platform system diagnostics project for monitoring disk capacity, utilization, and I/O activity, with later milestones for process analysis, root-cause detection, recommendations, and safe optimization.
 
----
+## Milestone status
 
-# Overview
+**M1 — Disk Monitoring Foundation: complete**
 
-Disk-I-O-Performance-Analyzer-Auto-Optimizer helps users understand why their system experiences high disk utilization, especially situations where disk usage remains at or near 100%.
+M1 includes:
 
-The project focuses on:
+- mounted disk discovery
+- total, used, and free space monitoring
+- disk utilization percentage
+- cumulative read/write bytes and operation counts
+- sampled read/write throughput and IOPS
+- structured JSON Lines logging
+- live and one-shot CLI dashboard
+- automated unit and end-to-end integration tests
 
-* Disk I/O monitoring
-* Process-level analysis
-* Root cause detection
-* Performance diagnostics
-* Automated optimization
+See [`docs/M1_COMPLETION.md`](docs/M1_COMPLETION.md) for the acceptance report.
 
-The goal is not only to show disk usage metrics but also to explain *why* disk usage is high and how it can be reduced safely.
-
----
-
-# Project Structure
-
-```text
-.
-├── analysis/       # Bottleneck, spike, confidence, and cause analysis
-├── config/         # Project settings
-├── monitoring/     # Disk and process monitoring modules
-├── reporting/      # CLI and root-cause reports
-├── tests/          # Integration tests
-├── utils/          # Formatting, history, and logging helpers
-├── main.py         # Main application entry point
-└── README.md
-```
-
-Run the main application from the repository root:
+## Quick start
 
 ```bash
+python -m pip install -r requirements.txt
 python main.py
 ```
 
-Individual modules can be run with Python's module syntax, for example:
+Run one snapshot without clearing the terminal:
 
 ```bash
-python -m reporting.process_report
-python -m monitoring.metrics_snapshot
+python main.py --once --no-clear
 ```
 
----
+Monitor a particular path:
 
-# Objectives
+```bash
+python main.py --path / --once --no-clear
+```
 
-* Monitor system-wide disk activity
-* Track per-process disk I/O usage
-* Identify disk bottlenecks
-* Detect abnormal disk behavior
-* Generate root-cause reports
-* Recommend optimization actions
-* Support automated mitigation strategies
+Windows example:
 
----
+```powershell
+python main.py --path C:\ --once --no-clear
+```
 
-# Features
+Use `python main.py --help` for all options, including refresh interval, I/O sampling interval, logging controls, and custom log paths.
 
-## System-Wide Disk Monitoring
+## Tests
 
-Monitor:
+```bash
+python -m unittest discover -s tests -v
+```
 
-* Disk active time
-* Read throughput
-* Write throughput
-* Disk queue metrics
-
-Example:
+## Project structure
 
 ```text
-Disk Usage: 97%
-
-Read Rate : 120 MB/s
-Write Rate: 45 MB/s
+.
+├── analysis/                  # Later analysis milestones
+├── config/
+│   └── settings.py            # Runtime defaults and thresholds
+├── docs/
+│   └── M1_COMPLETION.md        # M1 delivery and acceptance report
+├── logs/                       # Generated JSONL monitoring logs
+├── monitoring/
+│   ├── disk_capacity.py        # Total, used, and free bytes
+│   ├── disk_detector.py        # Mounted disk discovery
+│   ├── disk_monitor.py         # Cumulative I/O and sampled rates
+│   ├── disk_stats.py           # Utilization percentage
+│   └── metrics_snapshot.py     # Unified M1 snapshot collection
+├── reporting/
+│   └── cli_dashboard.py        # Live terminal dashboard
+├── tests/
+│   └── test_m1_integration.py  # Unit and end-to-end tests
+├── utils/
+│   ├── formatter.py            # Human-readable byte formatting
+│   └── logger.py               # Structured JSONL logging
+├── main.py                     # CLI entry point
+└── requirements.txt
 ```
 
----
-
-## Process-Level Analysis
-
-Identify processes responsible for disk activity.
-
-Example:
+## M1 output
 
 ```text
-chrome.exe        38%
-MsMpEng.exe       31%
-SearchIndexer.exe 19%
+========================================================================
+DISK I/O PERFORMANCE ANALYZER — M1 MONITORING DASHBOARD
+========================================================================
+Disk: C:\
+Status      : NORMAL
+Usage       : 42.5%
+Total Space : 476.94 GiB
+Used Space  : 202.70 GiB
+Free Space  : 274.24 GiB
+
+System-wide Disk I/O
+Read Operations  : 15,420
+Write Operations : 12,340
+Bytes Read       : 1.25 GiB
+Bytes Written    : 850.00 MiB
+Read Rate        : 24.20 MiB/s
+Write Rate       : 8.10 MiB/s
+========================================================================
 ```
 
----
+## Roadmap
 
-## Historical Activity Tracking
+### M1 — Disk Monitoring Foundation ✅
 
-Maintain activity history for analysis.
+- System-wide disk monitoring
+- Read/write statistics
+- Logging infrastructure
+- CLI dashboard
+- Integration testing
 
-Example:
+### M2 — Process-Level Disk Analysis
 
-```text
-09:12 Disk Usage 100%
-09:13 SearchIndexer Started
-09:15 Disk Spike Detected
-```
+- Process enumeration
+- Per-process disk I/O tracking
+- Top consumer identification
 
----
+### M3 — Historical Data Collection
 
-## Root Cause Detection
+- Metrics history
+- Event timeline
+- Disk spike recording
 
-Determine why disk usage is high.
+### M4 — Root Cause Detection Engine
 
-Examples:
+- Cause classification
+- Bottleneck identification
+- Root-cause reporting
 
-* Search Indexing
-* Antivirus Scanning
-* Windows Update
-* Excessive Logging
-* Paging Activity
-* Misbehaving Applications
+### M5 — Process Behavior Analysis
 
-Example:
+- Process profiling
+- Anomaly detection
+- Runaway process detection
 
-```text
-Root Cause:
-Windows Search Indexing
+### M6 — Recommendation Engine
 
-Confidence:
-91%
-```
+- Optimization recommendations
+- Impact estimation
 
----
+### M7 — Auto Optimization Engine
 
-## Process Behavior Analysis
+- Automated mitigation
+- Rollback protection
+- Safety checks
 
-Detect:
+### M8 — Alerting & Notifications
 
-* Runaway processes
-* Continuous write loops
-* Abnormal read patterns
-* Excessive logging activity
+- Real-time alerts
+- Event notifications
 
-Example:
+### M9 — Reporting & Analytics
 
-```text
-Warning:
+- Trend analysis
+- Usage reports
 
-Process:
-example.exe
+### M10 — Production Release
 
-Write Rate:
-520 MB/min
-```
+- Packaging
+- Stable release
+- Production documentation
 
----
+## Technology
 
-## Recommendation Engine
+- Python 3.10+
+- `psutil`
+- `unittest`
 
-Generate actionable recommendations.
-
-Example:
-
-```text
-Recommendation:
-
-Pause Search Indexing
-
-Expected Impact:
-
-Disk Usage Reduction:
-35%
-```
-
----
-
-## Auto Optimization Engine
-
-Apply safe optimization actions.
-
-Examples:
-
-* Service throttling
-* Process priority adjustment
-* Background task management
-* Optimization rollback
-
-Example:
-
-```text
-Optimization Applied
-
-Disk Usage:
-100% → 18%
-```
-
----
-
-# Roadmap
-
-## M1 — Disk Monitoring Foundation
-
-* System-wide disk monitoring
-* Read/write statistics
-* Logging infrastructure
-
-## M2 — Process-Level Disk Analysis
-
-* Process enumeration
-* Per-process disk usage tracking
-* Top consumer identification
-
-## M3 — Historical Data Collection
-
-* Metrics history
-* Event timeline
-* Disk spike recording
-
-## M4 — Root Cause Detection Engine
-
-* Cause classification
-* Bottleneck identification
-* Root cause reporting
-
-## M5 — Process Behavior Analysis
-
-* Process profiling
-* Anomaly detection
-* Runaway process detection
-
-## M6 — Recommendation Engine
-
-* Optimization recommendations
-* Impact estimation
-
-## M7 — Auto Optimization Engine
-
-* Automated mitigation
-* Rollback protection
-* Safety checks
-
-## M8 — Alerting & Notifications
-
-* Real-time alerts
-* Event notifications
-
-## M9 — Reporting & Analytics
-
-* Trend analysis
-* Usage reports
-
-## M10 — Production Release
-
-* Testing
-* Documentation
-* Packaging
-* Stable release
-
----
-
-# Target Users
-
-* Systems Programmers
-* Performance Engineers
-* IT Administrators
-* Power Users
-* Operating System Enthusiasts
-
----
-
-# Technologies
-
-Current implementation:
-
-* Python
-* psutil
-
-Planned technologies may include:
-
-* C++
-* Windows API
-* Multithreading
-* Performance Counters
-* Event Logging
-
----
-
-# Long-Term Vision
-
-Create a system diagnostics platform capable of:
-
-* Detecting disk bottlenecks
-* Explaining root causes
-* Recommending solutions
-* Applying safe optimizations automatically
-
-with minimal user intervention.
-
----
-
-# License
+## License
 
 License to be determined.

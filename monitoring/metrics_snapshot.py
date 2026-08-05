@@ -1,50 +1,50 @@
-from datetime import datetime
+"""Unified M1 monitoring snapshot collection."""
 
+from __future__ import annotations
+
+from datetime import datetime, timezone
+from typing import Any
+
+from monitoring.disk_detector import get_mounted_disks
+from monitoring.disk_monitor import sample_disk_io_rates
 from monitoring.disk_stats import get_disk_usage
-from monitoring.disk_monitor import get_disk_io_stats
-from monitoring.top_disk_consumers import get_top_disk_consumers
 
 
-def create_snapshot(path="/", top_process_limit=5):
+def create_snapshot(
+    paths: list[str] | None = None,
+    *,
+    io_sample_interval: float = 1.0,
+) -> dict[str, Any]:
+    """Collect mounted-disk utilization and system-wide disk I/O metrics.
+
+    Permission or transient filesystem errors are recorded in ``errors`` and do
+    not stop the remaining disks from being monitored.
     """
-    Create a complete system snapshot.
-    """
 
-    disk_usage = get_disk_usage(path)
-    io_stats = get_disk_io_stats()
-    top_processes = get_top_disk_consumers(
-        limit=top_process_limit
-    )
+    selected_paths = paths or get_mounted_disks()
+    disks: list[dict[str, Any]] = []
+    errors: list[dict[str, str]] = []
 
-    snapshot = {
-        "timestamp": datetime.now().strftime(
-            "%Y-%m-%d %H:%M:%S"
-        ),
-        "disk_usage_percent": disk_usage[
-            "usage_percent"
-        ],
-        "total_bytes": disk_usage[
-            "total_bytes"
-        ],
-        "used_bytes": disk_usage[
-            "used_bytes"
-        ],
-        "free_bytes": disk_usage[
-            "free_bytes"
-        ],
-        "read_bytes": io_stats[
-            "read_bytes"
-        ],
-        "write_bytes": io_stats[
-            "write_bytes"
-        ],
-        "top_processes": top_processes,
+    for path in selected_paths:
+        try:
+            disks.append(get_disk_usage(path))
+        except (FileNotFoundError, PermissionError, OSError) as error:
+            errors.append(
+                {
+                    "path": str(path),
+                    "error": type(error).__name__,
+                    "message": str(error),
+                }
+            )
+
+    io_stats = sample_disk_io_rates(io_sample_interval)
+    return {
+        "timestamp": datetime.now(timezone.utc).isoformat(),
+        "disks": disks,
+        "io": io_stats,
+        "errors": errors,
     }
-
-    return snapshot
 
 
 if __name__ == "__main__":
-    snapshot = create_snapshot()
-
-    print(snapshot)
+    print(create_snapshot())

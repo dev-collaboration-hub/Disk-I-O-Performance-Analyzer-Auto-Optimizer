@@ -1,21 +1,21 @@
-def format_size(size_bytes):
-    """
-    Convert bytes into a human-readable format.
-    Example:
-    1073741824 -> 1.00 GB
-    """
+"""Human-readable formatting helpers."""
 
-    units = ["B", "KB", "MB", "GB", "TB", "PB"]
+from __future__ import annotations
 
-    size = float(size_bytes)
+
+def format_size(size_bytes: float | int) -> str:
+    """Convert a byte value into a compact binary unit string."""
+
+    size = float(max(0, size_bytes))
+    units = ("B", "KiB", "MiB", "GiB", "TiB", "PiB")
 
     for unit in units:
         if size < 1024 or unit == units[-1]:
             return f"{size:.2f} {unit}"
         size /= 1024
 
+    raise AssertionError("unreachable")
 
-if __name__ == "__main__":
-    print(format_size(1024))
-    print(format_size(1048576))
-    print(format_size(1073741824))
+
+# Backward-compatible alias.
+format_bytes = format_size
