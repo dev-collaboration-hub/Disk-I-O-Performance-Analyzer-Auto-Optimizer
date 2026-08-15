@@ -1,4 +1,4 @@
-"""Command-line entry point for M1-M4 disk monitoring."""
+"""Command-line entry point for M1-M5 disk monitoring."""
 
 from __future__ import annotations
 
@@ -24,7 +24,8 @@ def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
         description=(
             "Monitor disk capacity and system/process I/O, retain metrics "
-            "history, detect spikes, and explain likely disk bottlenecks."
+            "history, detect spikes, explain likely disk bottlenecks, and "
+            "analyze process behavior anomalies."
         )
     )
     parser.add_argument(

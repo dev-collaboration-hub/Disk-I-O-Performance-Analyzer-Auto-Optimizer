@@ -1,4 +1,4 @@
-"""Real-time command-line dashboard for M1-M4 disk monitoring."""
+"""Real-time command-line dashboard for M1-M5 disk monitoring."""
 
 from __future__ import annotations
 
@@ -16,6 +16,7 @@ from config.settings import (
     HISTORY_RETENTION_RECORDS,
     IO_SAMPLE_INTERVAL_SECONDS,
     MINIMUM_PROCESS_IO_BYTES,
+    PROCESS_PROFILE_HISTORY_SAMPLES,
     REFRESH_INTERVAL_SECONDS,
     ROOT_CAUSE_SUSTAINED_SAMPLES,
     SPIKE_IO_MIN_BYTES_PER_SECOND,
@@ -25,6 +26,7 @@ from config.settings import (
     WARNING_DISK_USAGE_PERCENT,
 )
 from monitoring.metrics_snapshot import create_snapshot
+from reporting.process_behavior_report import attach_process_behavior_analysis
 from reporting.root_cause_report import attach_root_cause_analysis
 from utils.formatter import format_size
 from utils.history_manager import HistoryManager
@@ -52,7 +54,7 @@ def persist_snapshot_history(
     io_multiplier: float = SPIKE_IO_MULTIPLIER,
     io_minimum_bytes_per_second: float = SPIKE_IO_MIN_BYTES_PER_SECOND,
 ) -> list[dict[str, Any]]:
-    """Persist one snapshot, M3 events, and its M4 root-cause assessment."""
+    """Persist one snapshot with M3 events and M4-M5 analysis."""
 
     previous = history.latest_snapshot()
     events = build_timeline_events(
@@ -75,11 +77,20 @@ def persist_snapshot_history(
         "event_file": str(timeline.event_file),
     }
 
+    history_window = max(
+        ROOT_CAUSE_SUSTAINED_SAMPLES,
+        PROCESS_PROFILE_HISTORY_SAMPLES,
+    )
     recent_history = history.load_history(
-        limit=max(0, ROOT_CAUSE_SUSTAINED_SAMPLES - 1)
+        limit=max(0, history_window - 1)
     )
     recent_history.append(snapshot)
+
     attach_root_cause_analysis(
+        snapshot,
+        recent_history=recent_history,
+    )
+    attach_process_behavior_analysis(
         snapshot,
         recent_history=recent_history,
     )
@@ -175,10 +186,59 @@ def _render_root_cause(snapshot: dict[str, Any]) -> list[str]:
     return lines
 
 
+def _render_process_behavior(snapshot: dict[str, Any]) -> list[str]:
+    report = snapshot.get("process_behavior", {})
+    if not report:
+        return ["", "M5 Process Behavior Analysis: unavailable"]
+
+    lines = [
+        "",
+        "M5 Process Behavior Analysis",
+        "-" * 94,
+        f"Status     : {report.get('status', 'UNKNOWN')}",
+        (
+            f"Profiles   : {report.get('profile_count', 0)} | "
+            f"Anomalies: {report.get('anomaly_count', 0)} | "
+            f"Runaways: {report.get('runaway_count', 0)}"
+        ),
+    ]
+
+    for runaway in report.get("runaways", []):
+        lines.append(
+            "RUNAWAY    : "
+            f"{runaway.get('name')} (PID {runaway.get('pid')}) | "
+            f"{format_size(runaway.get('latest_rate_bytes_per_second', 0.0))}/s | "
+            f"{float(runaway.get('latest_share_percent', 0.0)):.1f}% share | "
+            f"{runaway.get('severity', 'WARNING')}"
+        )
+
+    for anomaly in report.get("anomalies", []):
+        lines.append(
+            "ANOMALY    : "
+            f"{anomaly.get('name')} (PID {anomaly.get('pid')}) | "
+            + ", ".join(anomaly.get("signals", []))
+            + f" | {anomaly.get('severity', 'WARNING')}"
+        )
+
+    if not report.get("runaways") and not report.get("anomalies"):
+        profiles = report.get("profiles", [])
+        if profiles:
+            top = profiles[0]
+            lines.append(
+                "Top profile: "
+                f"{top.get('name')} | "
+                f"{format_size(top.get('latest_rate_bytes_per_second', 0.0))}/s | "
+                f"trend={top.get('trend', 'UNKNOWN')}"
+            )
+        else:
+            lines.append(report.get("message", "No process activity."))
+    return lines
+
+
 def render_dashboard(snapshot: dict[str, Any]) -> str:
     lines = [
         "=" * 94,
-        "DISK I/O PERFORMANCE ANALYZER — M4 ROOT-CAUSE MONITORING DASHBOARD",
+        "DISK I/O PERFORMANCE ANALYZER — M5 PROCESS-BEHAVIOR MONITORING DASHBOARD",
         "=" * 94,
         f"Timestamp: {snapshot['timestamp']}",
     ]
@@ -225,6 +285,7 @@ def render_dashboard(snapshot: dict[str, Any]) -> str:
     lines.extend(_render_processes(snapshot))
     lines.extend(_render_history(snapshot))
     lines.extend(_render_root_cause(snapshot))
+    lines.extend(_render_process_behavior(snapshot))
 
     errors = snapshot.get("errors", [])
     if errors:
@@ -268,14 +329,14 @@ def run_dashboard(
     history = HistoryManager(history_file, max_records=history_retention)
     timeline = EventTimeline(event_file, max_records=event_retention)
     if enable_logging:
-        logger.log_event("M4 root-cause disk monitoring started")
+        logger.log_event("M5 process-behavior disk monitoring started")
     if enable_history:
         timeline.record_event(
             {
                 "event_type": "MONITORING_STARTED",
                 "severity": "INFO",
                 "source": "cli_dashboard",
-                "message": "M4 root-cause disk monitoring started.",
+                "message": "M5 process-behavior disk monitoring started.",
             }
         )
 
@@ -315,9 +376,17 @@ def run_dashboard(
                         snapshot,
                         recent_history=[snapshot],
                     )
+                    attach_process_behavior_analysis(
+                        snapshot,
+                        recent_history=[snapshot],
+                    )
             else:
                 snapshot["history"] = {"enabled": False}
                 attach_root_cause_analysis(
+                    snapshot,
+                    recent_history=[snapshot],
+                )
+                attach_process_behavior_analysis(
                     snapshot,
                     recent_history=[snapshot],
                 )
@@ -336,14 +405,14 @@ def run_dashboard(
                 time.sleep(remaining)
     except KeyboardInterrupt:
         if enable_logging:
-            logger.log_event("M4 monitoring stopped by user")
+            logger.log_event("M5 monitoring stopped by user")
         if enable_history:
             timeline.record_event(
                 {
                     "event_type": "MONITORING_STOPPED",
                     "severity": "INFO",
                     "source": "cli_dashboard",
-                    "message": "M4 monitoring stopped by user.",
+                    "message": "M5 monitoring stopped by user.",
                 }
             )
         output("\nMonitoring stopped.")

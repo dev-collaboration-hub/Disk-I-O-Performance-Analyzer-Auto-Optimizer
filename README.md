@@ -1,6 +1,6 @@
 # Disk I/O Performance Analyzer & Auto Optimizer
 
-A cross-platform diagnostics project for monitoring disk capacity, system-wide I/O, active process disk consumers, historical disk activity, and likely root causes of disk pressure.
+A cross-platform diagnostics project for monitoring disk capacity, system-wide I/O, active process disk consumers, historical disk activity, likely root causes, and process-behavior anomalies.
 
 ## Milestone status
 
@@ -8,18 +8,18 @@ A cross-platform diagnostics project for monitoring disk capacity, system-wide I
 - **M2 — Process-Level Disk Analysis: complete**
 - **M3 — Historical Data Collection: complete**
 - **M4 — Root Cause Detection Engine: complete**
+- **M5 — Process Behavior Analysis: complete**
 
-M4 adds:
+M5 adds:
 
-- deterministic bottleneck detection
-- separate capacity-pressure, process-dominance, and spike signals
-- current top-process attribution
-- cross-platform process cause classification
-- sustained-activity evidence from recent history
-- confidence scoring
-- evidence-backed recommendations
-- integrated root-cause dashboard output
-- M4 regression and integration tests
+- bounded historical process profiling
+- per-process rate/share baselines
+- baseline-aware anomaly detection
+- sustained runaway-process detection
+- PID + creation-time identity protection
+- integrated M5 dashboard output
+- M5 results persisted with monitoring snapshots
+- M5 regression and integration tests
 
 Completion reports:
 
@@ -27,6 +27,7 @@ Completion reports:
 - [`docs/M2_COMPLETION.md`](docs/M2_COMPLETION.md)
 - [`docs/M3_COMPLETION.md`](docs/M3_COMPLETION.md)
 - [`docs/M4_COMPLETION.md`](docs/M4_COMPLETION.md)
+- [`docs/M5_COMPLETION.md`](docs/M5_COMPLETION.md)
 
 ## Quick start
 
@@ -54,6 +55,8 @@ Disable historical persistence:
 ```bash
 python main.py --once --no-clear --no-history
 ```
+
+M5 still profiles the current sample with history disabled, but it does not claim a historical anomaly or runaway until enough prior evidence exists.
 
 Inspect historical activity:
 
@@ -87,17 +90,21 @@ python -m compileall -q .
 ```text
 .
 ├── analysis/
+│   ├── anomaly_detector.py           # M5 baseline-aware anomaly detection
 │   ├── bottleneck_detector.py        # M4 bottleneck evidence engine
 │   ├── cause_classifier.py           # M4 process-to-cause rules
 │   ├── confidence_engine.py          # Root-cause confidence scoring
+│   ├── process_profiler.py           # M5 historical behavior profiles
+│   ├── runaway_detector.py           # M5 sustained same-process detection
 │   ├── spike_detector.py             # M3 capacity and I/O spike detection
 │   └── timeline_builder.py           # Structured persistent event timeline
-├── config/settings.py                # M1-M4 runtime defaults
+├── config/settings.py                # M1-M5 runtime defaults
 ├── docs/
 │   ├── M1_COMPLETION.md
 │   ├── M2_COMPLETION.md
 │   ├── M3_COMPLETION.md
-│   └── M4_COMPLETION.md
+│   ├── M4_COMPLETION.md
+│   └── M5_COMPLETION.md
 ├── logs/                              # Runtime JSONL files
 ├── monitoring/
 │   ├── disk_capacity.py
@@ -109,15 +116,17 @@ python -m compileall -q .
 │   ├── process_io_monitor.py
 │   └── top_disk_consumers.py
 ├── reporting/
-│   ├── cli_dashboard.py              # Integrated M4 dashboard
+│   ├── cli_dashboard.py              # Integrated M5 dashboard
 │   ├── history_report.py
+│   ├── process_behavior_report.py    # Structured M5 analysis/reporting
 │   ├── process_report.py
 │   └── root_cause_report.py          # Structured M4 analysis/reporting
 ├── tests/
 │   ├── test_m1_integration.py
 │   ├── test_m2_integration.py
 │   ├── test_m3_integration.py
-│   └── test_m4_integration.py
+│   ├── test_m4_integration.py
+│   └── test_m5_integration.py
 ├── utils/
 │   ├── history_manager.py
 │   └── logger.py
@@ -142,7 +151,19 @@ M4 does not assume that high raw throughput automatically means a bottleneck bec
 3. **Recent spike evidence** — M3 detected a disk-usage or throughput spike.
 4. **Sustained activity** — the same process remains dominant across recent snapshots.
 
-The root-cause report then classifies the process when possible, assigns severity and confidence, keeps the evidence visible, and produces a conservative recommendation. Unknown processes remain explicitly unknown rather than being forced into a false category.
+The root-cause report classifies the process when possible, assigns severity and confidence, keeps the evidence visible, and produces a conservative recommendation.
+
+## How M5 process behavior analysis works
+
+M5 analyzes the already-collected top process consumers instead of adding another sampler.
+
+For each current process it can build a recent profile containing median/average/max I/O rate, I/O share, read/write mix, dominance frequency, trend, and burst ratio.
+
+An anomaly requires an established per-process baseline. The current sample can be flagged when its rate grows by a configurable multiple of its own historical median or its I/O share jumps materially above its own median.
+
+A runaway requires stronger evidence: the same process **instance** must stay above both the configured rate and share thresholds for consecutive samples. Identity uses process name + PID + creation time so PID reuse does not create false continuity.
+
+M5 is diagnostic only. It does not kill, pause, throttle, or reconfigure processes.
 
 ## Roadmap
 
@@ -181,11 +202,15 @@ The root-cause report then classifies the process when possible, assigns severit
 - Dashboard integration
 - Integration testing
 
-### M5 — Process Behavior Analysis
+### M5 — Process Behavior Analysis ✅
 
 - Process profiling
-- Anomaly detection
+- Baseline-aware anomaly detection
 - Runaway process detection
+- Same-instance identity protection
+- Historical persistence
+- Dashboard integration
+- Integration testing
 
 ### M6 — Recommendation Engine
 
@@ -219,7 +244,7 @@ The root-cause report then classifies the process when possible, assigns severit
 - Python 3.10+
 - `psutil`
 - `unittest`
-- Standard-library JSONL persistence
+- Standard-library JSONL persistence and statistics
 
 ## License
 
