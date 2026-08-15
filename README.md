@@ -1,29 +1,32 @@
 # Disk I/O Performance Analyzer & Auto Optimizer
 
-A cross-platform diagnostics project for monitoring disk capacity, system-wide I/O, active process disk consumers, and historical disk activity.
+A cross-platform diagnostics project for monitoring disk capacity, system-wide I/O, active process disk consumers, historical disk activity, and likely root causes of disk pressure.
 
 ## Milestone status
 
 - **M1 — Disk Monitoring Foundation: complete**
 - **M2 — Process-Level Disk Analysis: complete**
 - **M3 — Historical Data Collection: complete**
+- **M4 — Root Cause Detection Engine: complete**
 
-M3 adds:
+M4 adds:
 
-- append-only metrics history
-- structured event timeline
-- configurable retention
-- corrupt/partial record recovery
-- capacity-utilization and throughput spike detection
-- disk status and top-consumer transition events
-- integrated historical dashboard section
-- standalone history report
+- deterministic bottleneck detection
+- separate capacity-pressure, process-dominance, and spike signals
+- current top-process attribution
+- cross-platform process cause classification
+- sustained-activity evidence from recent history
+- confidence scoring
+- evidence-backed recommendations
+- integrated root-cause dashboard output
+- M4 regression and integration tests
 
 Completion reports:
 
 - [`docs/M1_COMPLETION.md`](docs/M1_COMPLETION.md)
 - [`docs/M2_COMPLETION.md`](docs/M2_COMPLETION.md)
 - [`docs/M3_COMPLETION.md`](docs/M3_COMPLETION.md)
+- [`docs/M4_COMPLETION.md`](docs/M4_COMPLETION.md)
 
 ## Quick start
 
@@ -38,7 +41,7 @@ One snapshot without clearing the terminal:
 python main.py --once --no-clear
 ```
 
-Use custom M3 history files:
+Use custom history files:
 
 ```bash
 python main.py --once --no-clear \
@@ -84,33 +87,39 @@ python -m compileall -q .
 ```text
 .
 ├── analysis/
-│   ├── spike_detector.py            # Capacity and I/O spike detection
-│   └── timeline_builder.py          # Structured persistent event timeline
-├── config/settings.py               # M1-M3 runtime defaults
+│   ├── bottleneck_detector.py        # M4 bottleneck evidence engine
+│   ├── cause_classifier.py           # M4 process-to-cause rules
+│   ├── confidence_engine.py          # Root-cause confidence scoring
+│   ├── spike_detector.py             # M3 capacity and I/O spike detection
+│   └── timeline_builder.py           # Structured persistent event timeline
+├── config/settings.py                # M1-M4 runtime defaults
 ├── docs/
 │   ├── M1_COMPLETION.md
 │   ├── M2_COMPLETION.md
-│   └── M3_COMPLETION.md
-├── logs/                             # Runtime JSONL files
+│   ├── M3_COMPLETION.md
+│   └── M4_COMPLETION.md
+├── logs/                              # Runtime JSONL files
 ├── monitoring/
 │   ├── disk_capacity.py
 │   ├── disk_detector.py
 │   ├── disk_monitor.py
 │   ├── disk_stats.py
-│   ├── metrics_snapshot.py           # Versioned unified snapshot
+│   ├── metrics_snapshot.py           # Versioned unified metrics snapshot
 │   ├── process_detector.py
 │   ├── process_io_monitor.py
 │   └── top_disk_consumers.py
 ├── reporting/
-│   ├── cli_dashboard.py              # Integrated M3 dashboard
-│   ├── history_report.py             # Historical report CLI
-│   └── process_report.py
+│   ├── cli_dashboard.py              # Integrated M4 dashboard
+│   ├── history_report.py
+│   ├── process_report.py
+│   └── root_cause_report.py          # Structured M4 analysis/reporting
 ├── tests/
 │   ├── test_m1_integration.py
 │   ├── test_m2_integration.py
-│   └── test_m3_integration.py
+│   ├── test_m3_integration.py
+│   └── test_m4_integration.py
 ├── utils/
-│   ├── history_manager.py            # Crash-tolerant JSONL store
+│   ├── history_manager.py
 │   └── logger.py
 ├── main.py
 └── requirements.txt
@@ -118,11 +127,22 @@ python -m compileall -q .
 
 ## How M3 history works
 
-Each monitoring cycle creates a versioned snapshot containing disk metrics, system I/O rates, and process-level activity. M3 appends this snapshot to `metrics_history.jsonl`; it does not rewrite the complete history on every cycle.
+Each monitoring cycle creates a versioned snapshot containing disk metrics, system I/O rates, and process-level activity. M3 appends the snapshot to `metrics_history.jsonl`; it does not rewrite the complete history on every cycle.
 
 Before storing a new snapshot, M3 compares it with the most recent stored snapshot. Meaningful changes become structured events in `event_timeline.jsonl`, including spikes, threshold transitions, collection warnings, and top disk-consumer changes.
 
 Malformed or incomplete JSONL records are skipped during reads, so an interrupted final write does not make earlier history unusable. Retention limits prevent indefinite growth.
+
+## How M4 root-cause detection works
+
+M4 does not assume that high raw throughput automatically means a bottleneck because storage devices have different performance ceilings. Instead, it combines independent evidence:
+
+1. **Capacity pressure** — warning or critical disk-space utilization.
+2. **Process I/O dominance** — one process owns a configurable share of active process disk I/O.
+3. **Recent spike evidence** — M3 detected a disk-usage or throughput spike.
+4. **Sustained activity** — the same process remains dominant across recent snapshots.
+
+The root-cause report then classifies the process when possible, assigns severity and confidence, keeps the evidence visible, and produces a conservative recommendation. Unknown processes remain explicitly unknown rather than being forced into a false category.
 
 ## Roadmap
 
@@ -151,11 +171,15 @@ Malformed or incomplete JSONL records are skipped during reads, so an interrupte
 - Historical report
 - Integration testing
 
-### M4 — Root Cause Detection Engine
+### M4 — Root Cause Detection Engine ✅
 
 - Cause classification
 - Bottleneck identification
 - Root-cause reporting
+- Confidence and evidence
+- Historical-context integration
+- Dashboard integration
+- Integration testing
 
 ### M5 — Process Behavior Analysis
 

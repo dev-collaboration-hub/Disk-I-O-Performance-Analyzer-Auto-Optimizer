@@ -1,4 +1,4 @@
-"""Real-time command-line dashboard for M1-M3 disk monitoring."""
+"""Real-time command-line dashboard for M1-M4 disk monitoring."""
 
 from __future__ import annotations
 
@@ -17,6 +17,7 @@ from config.settings import (
     IO_SAMPLE_INTERVAL_SECONDS,
     MINIMUM_PROCESS_IO_BYTES,
     REFRESH_INTERVAL_SECONDS,
+    ROOT_CAUSE_SUSTAINED_SAMPLES,
     SPIKE_IO_MIN_BYTES_PER_SECOND,
     SPIKE_IO_MULTIPLIER,
     SPIKE_USAGE_DELTA_PERCENT,
@@ -24,6 +25,7 @@ from config.settings import (
     WARNING_DISK_USAGE_PERCENT,
 )
 from monitoring.metrics_snapshot import create_snapshot
+from reporting.root_cause_report import attach_root_cause_analysis
 from utils.formatter import format_size
 from utils.history_manager import HistoryManager
 from utils.logger import MonitoringLogger
@@ -50,7 +52,7 @@ def persist_snapshot_history(
     io_multiplier: float = SPIKE_IO_MULTIPLIER,
     io_minimum_bytes_per_second: float = SPIKE_IO_MIN_BYTES_PER_SECOND,
 ) -> list[dict[str, Any]]:
-    """Persist one snapshot and its derived M3 events."""
+    """Persist one snapshot, M3 events, and its M4 root-cause assessment."""
 
     previous = history.latest_snapshot()
     events = build_timeline_events(
@@ -72,6 +74,16 @@ def persist_snapshot_history(
         "history_file": str(history.history_file),
         "event_file": str(timeline.event_file),
     }
+
+    recent_history = history.load_history(
+        limit=max(0, ROOT_CAUSE_SUSTAINED_SAMPLES - 1)
+    )
+    recent_history.append(snapshot)
+    attach_root_cause_analysis(
+        snapshot,
+        recent_history=recent_history,
+    )
+
     history.save_snapshot(snapshot)
     timeline.record_events(events)
     return events
@@ -131,10 +143,42 @@ def _render_history(snapshot: dict[str, Any]) -> list[str]:
     return lines
 
 
+def _render_root_cause(snapshot: dict[str, Any]) -> list[str]:
+    report = snapshot.get("root_cause", {})
+    if not report:
+        return ["", "M4 Root Cause Detection: unavailable"]
+
+    lines = [
+        "",
+        "M4 Root Cause Detection",
+        "-" * 94,
+    ]
+    if report.get("status") != "BOTTLENECK_DETECTED":
+        lines.append(report.get("message", "No bottleneck detected."))
+        return lines
+
+    lines.extend(
+        [
+            f"Severity   : {report.get('severity', 'UNKNOWN')}",
+            f"Cause      : {report.get('cause', 'Unknown')}",
+            f"Process    : {report.get('process') or 'n/a'}",
+            f"Confidence : {float(report.get('confidence', 0.0)):.2f}%",
+            "Signals    : "
+            + ", ".join(report.get("signals", [])),
+        ]
+    )
+    for item in report.get("evidence", []):
+        lines.append(f"Evidence   : {item}")
+    lines.append(
+        f"Action     : {report.get('recommendation', 'Continue monitoring.')}"
+    )
+    return lines
+
+
 def render_dashboard(snapshot: dict[str, Any]) -> str:
     lines = [
         "=" * 94,
-        "DISK I/O PERFORMANCE ANALYZER — M3 HISTORICAL MONITORING DASHBOARD",
+        "DISK I/O PERFORMANCE ANALYZER — M4 ROOT-CAUSE MONITORING DASHBOARD",
         "=" * 94,
         f"Timestamp: {snapshot['timestamp']}",
     ]
@@ -180,6 +224,7 @@ def render_dashboard(snapshot: dict[str, Any]) -> str:
     )
     lines.extend(_render_processes(snapshot))
     lines.extend(_render_history(snapshot))
+    lines.extend(_render_root_cause(snapshot))
 
     errors = snapshot.get("errors", [])
     if errors:
@@ -223,14 +268,14 @@ def run_dashboard(
     history = HistoryManager(history_file, max_records=history_retention)
     timeline = EventTimeline(event_file, max_records=event_retention)
     if enable_logging:
-        logger.log_event("M3 historical disk monitoring started")
+        logger.log_event("M4 root-cause disk monitoring started")
     if enable_history:
         timeline.record_event(
             {
                 "event_type": "MONITORING_STARTED",
                 "severity": "INFO",
                 "source": "cli_dashboard",
-                "message": "M3 historical disk monitoring started.",
+                "message": "M4 root-cause disk monitoring started.",
             }
         )
 
@@ -266,8 +311,16 @@ def run_dashboard(
                         "enabled": False,
                         "error": str(error),
                     }
+                    attach_root_cause_analysis(
+                        snapshot,
+                        recent_history=[snapshot],
+                    )
             else:
                 snapshot["history"] = {"enabled": False}
+                attach_root_cause_analysis(
+                    snapshot,
+                    recent_history=[snapshot],
+                )
 
             if enable_logging:
                 logger.log_snapshot(snapshot)
@@ -283,14 +336,14 @@ def run_dashboard(
                 time.sleep(remaining)
     except KeyboardInterrupt:
         if enable_logging:
-            logger.log_event("M3 monitoring stopped by user")
+            logger.log_event("M4 monitoring stopped by user")
         if enable_history:
             timeline.record_event(
                 {
                     "event_type": "MONITORING_STOPPED",
                     "severity": "INFO",
                     "source": "cli_dashboard",
-                    "message": "M3 monitoring stopped by user.",
+                    "message": "M4 monitoring stopped by user.",
                 }
             )
         output("\nMonitoring stopped.")
