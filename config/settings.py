@@ -7,11 +7,9 @@ WARNING_DISK_USAGE_PERCENT = 80.0
 CRITICAL_DISK_USAGE_PERCENT = 95.0
 SHOW_CONSOLE_OUTPUT = True
 
-# M2 process-level monitoring defaults.
 TOP_PROCESS_LIMIT = 5
 MINIMUM_PROCESS_IO_BYTES = 1
 
-# M3 history, timeline, and spike-detection defaults.
 HISTORY_FILE = "logs/metrics_history.jsonl"
 EVENT_TIMELINE_FILE = "logs/event_timeline.jsonl"
 HISTORY_RETENTION_RECORDS = 10_000
@@ -20,12 +18,10 @@ SPIKE_USAGE_DELTA_PERCENT = 20.0
 SPIKE_IO_MULTIPLIER = 3.0
 SPIKE_IO_MIN_BYTES_PER_SECOND = 1_048_576.0
 
-# M4 root-cause detection defaults.
 ROOT_CAUSE_PROCESS_SHARE_PERCENT = 50.0
 ROOT_CAUSE_MIN_PROCESS_RATE_BYTES_PER_SECOND = 1.0
 ROOT_CAUSE_SUSTAINED_SAMPLES = 3
 
-# M5 process-behavior analysis defaults.
 PROCESS_PROFILE_HISTORY_SAMPLES = 20
 PROCESS_ANOMALY_MIN_BASELINE_SAMPLES = 3
 PROCESS_ANOMALY_RATE_MULTIPLIER = 3.0
@@ -35,32 +31,27 @@ RUNAWAY_PROCESS_SAMPLES = 3
 RUNAWAY_PROCESS_SHARE_PERCENT = 60.0
 RUNAWAY_PROCESS_MIN_RATE_BYTES_PER_SECOND = 1_048_576.0
 
-# M6 recommendation-engine defaults.
 RECOMMENDATION_MAX_ITEMS = 5
 RECOMMENDATION_MIN_ROOT_CAUSE_CONFIDENCE = 55.0
 RECOMMENDATION_HIGH_IMPACT_SCORE = 70.0
 RECOMMENDATION_MEDIUM_IMPACT_SCORE = 40.0
 
-# M7 automatic-optimization defaults.
-# Execution is opt-in: the M7 CLI is dry-run unless --apply is supplied.
 AUTO_OPTIMIZATION_ENABLED = False
 AUTO_OPTIMIZATION_MAX_ACTIONS = 1
 AUTO_OPTIMIZATION_MIN_IMPACT_SCORE = 65.0
 AUTO_OPTIMIZATION_PRIORITY_STEP = 5
 OPTIMIZATION_JOURNAL_FILE = "logs/optimization_journal.jsonl"
 AUTO_OPTIMIZATION_DENYLIST = (
-    "system",
-    "systemd",
-    "init",
-    "kernel_task",
-    "launchd",
-    "smss.exe",
-    "csrss.exe",
-    "wininit.exe",
-    "services.exe",
-    "lsass.exe",
-    "winlogon.exe",
+    "system", "systemd", "init", "kernel_task", "launchd",
+    "smss.exe", "csrss.exe", "wininit.exe", "services.exe",
+    "lsass.exe", "winlogon.exe",
 )
 
-# Backward-compatible name used by earlier versions.
+# M8 alerting and notification defaults.
+ALERT_FILE = "logs/alerts.jsonl"
+ALERT_RETENTION_RECORDS = 5_000
+ALERT_COOLDOWN_SECONDS = 300.0
+ALERT_MIN_RECOMMENDATION_PRIORITY_SCORE = 65.0
+ALERT_RECOVERY_ENABLED = True
+
 REFRESH_INTERVAL = REFRESH_INTERVAL_SECONDS
