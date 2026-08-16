@@ -28,6 +28,8 @@ Installed commands:
 `.github/workflows/release.yml` runs on `v*` tags, executes the release gate, builds distributions, uploads them as workflow artifacts, and creates a GitHub release using the tag.
 
 ### 5. Release validation
+The optional `release` extra supplies build tooling and a Python 3.10 TOML parser fallback without adding it to normal runtime dependencies.
+
 `scripts/release_check.py` checks package/version consistency, required production/release files, milestone completion documents M1–M10, Python compilation, and full unittest discovery.
 
 `tests/test_m10_release.py` covers the stable metadata and console entry-point contract.
@@ -40,7 +42,7 @@ M10 does not invent or change the project's legal license. The README continues 
 
 ## Validation performed during M10 authoring
 
-The authored M10 metadata parses successfully with `tomllib`; version consistency, required-file checks, workflow structure, and M10 release tests were validated locally. The full repository test/build matrix is also encoded as a required CI gate.
+The authored M10 metadata parses successfully; version consistency, required-file checks, workflow structure, and M10 release tests were validated locally. The full repository test/build matrix is encoded as a required CI gate.
 
 ## Publication boundary
 

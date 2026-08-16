@@ -47,9 +47,10 @@ The original module commands remain supported.
 
 ## Validation before deployment
 
-Run:
+Install release tooling and run:
 
 ```bash
+python -m pip install ".[release]"
 python scripts/release_check.py
 ```
 
@@ -58,7 +59,6 @@ The release check validates metadata/version consistency, required release files
 For package build validation:
 
 ```bash
-python -m pip install build
 python -m build
 ```
 

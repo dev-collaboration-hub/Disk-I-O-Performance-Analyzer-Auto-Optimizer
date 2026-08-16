@@ -33,6 +33,12 @@ disk-io-analytics = "reporting.analytics_report:main"
 disk-io-optimize = "reporting.optimization_report:main"
 disk-io-recommendations = "reporting.recommendation_report:main"
 
+[project.optional-dependencies]
+release = [
+  "build>=1.2",
+  "tomli>=2.0; python_version < '3.11'",
+]
+
 [tool.setuptools]
 py-modules = ["main"]
 
