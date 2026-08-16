@@ -1,6 +1,6 @@
 # Disk I/O Performance Analyzer & Auto Optimizer
 
-A cross-platform diagnostics project for monitoring disk capacity, system-wide I/O, active process disk consumers, historical activity, likely root causes, process-behavior anomalies, and evidence-backed optimization recommendations.
+A cross-platform diagnostics project for monitoring disk capacity, system-wide I/O, active process disk consumers, historical activity, root causes, process-behavior anomalies, optimization recommendations, and safety-gated reversible mitigation.
 
 ## Milestone status
 
@@ -10,18 +10,20 @@ A cross-platform diagnostics project for monitoring disk capacity, system-wide I
 - **M4 — Root Cause Detection Engine: complete**
 - **M5 — Process Behavior Analysis: complete**
 - **M6 — Recommendation Engine: complete**
+- **M7 — Auto Optimization Engine: complete**
 
-M6 adds:
+M7 adds:
 
-- ranked evidence-backed optimization recommendations
-- M4 root-cause + M5 behavior integration
-- cause-specific manual actions
-- recommendation safety metadata
-- conservative impact scoring
-- low-confidence gating
-- recommendation persistence in new snapshots
-- standalone text/JSON recommendation reports
-- M6 integration tests
+- safety-gated automatic mitigation
+- dry-run by default
+- reversible process-priority reduction
+- PID + name + creation-time verification
+- protected system-process denylist
+- bounded automatic action count
+- transactional rollback on failure
+- durable optimization journal
+- explicit rollback of the latest active session
+- M7 integration tests
 
 Completion reports:
 
@@ -31,6 +33,7 @@ Completion reports:
 - [`docs/M4_COMPLETION.md`](docs/M4_COMPLETION.md)
 - [`docs/M5_COMPLETION.md`](docs/M5_COMPLETION.md)
 - [`docs/M6_COMPLETION.md`](docs/M6_COMPLETION.md)
+- [`docs/M7_COMPLETION.md`](docs/M7_COMPLETION.md)
 
 ## Quick start
 
@@ -39,18 +42,10 @@ python -m pip install -r requirements.txt
 python main.py
 ```
 
-One snapshot without clearing the terminal:
+One snapshot:
 
 ```bash
 python main.py --once --no-clear
-```
-
-Use custom history files:
-
-```bash
-python main.py --once --no-clear \
-  --history-file logs/my-history.jsonl \
-  --event-file logs/my-events.jsonl
 ```
 
 Inspect historical activity:
@@ -65,11 +60,33 @@ Inspect M6 recommendations:
 python -m reporting.recommendation_report
 ```
 
-Machine-readable M6 report:
+## M7 auto optimization
+
+Preview the safe optimization plan without making changes:
 
 ```bash
-python -m reporting.recommendation_report --json
+python -m reporting.optimization_report
 ```
+
+Apply only safety-approved reversible actions:
+
+```bash
+python -m reporting.optimization_report --apply
+```
+
+Rollback the latest still-active M7 session:
+
+```bash
+python -m reporting.optimization_report --rollback-last
+```
+
+Machine-readable plan/result:
+
+```bash
+python -m reporting.optimization_report --json
+```
+
+M7 does not automatically delete files, kill/suspend processes, stop services, change security settings, or tune databases/storage.
 
 ## Tests
 
@@ -87,27 +104,34 @@ python -m compileall -q .
 │   ├── bottleneck_detector.py
 │   ├── cause_classifier.py
 │   ├── confidence_engine.py
-│   ├── impact_estimator.py           # M6 impact opportunity estimate
+│   ├── impact_estimator.py
 │   ├── process_profiler.py
-│   ├── recommendation_engine.py      # M6 ranked recommendations
+│   ├── recommendation_engine.py
 │   ├── runaway_detector.py
 │   ├── spike_detector.py
 │   └── timeline_builder.py
-├── config/settings.py                # M1-M6 runtime defaults
+├── config/settings.py                # M1-M7 runtime/safety defaults
 ├── docs/
 │   ├── M1_COMPLETION.md
 │   ├── M2_COMPLETION.md
 │   ├── M3_COMPLETION.md
 │   ├── M4_COMPLETION.md
 │   ├── M5_COMPLETION.md
-│   └── M6_COMPLETION.md
+│   ├── M6_COMPLETION.md
+│   └── M7_COMPLETION.md
 ├── monitoring/
+├── optimizer/
+│   ├── auto_optimizer.py             # M7 planning/execution transaction
+│   ├── process_priority.py           # Reversible process-priority action
+│   ├── rollback_manager.py           # Durable journal + rollback
+│   └── safety_guard.py               # M7 eligibility and identity checks
 ├── reporting/
 │   ├── cli_dashboard.py
 │   ├── history_report.py
+│   ├── optimization_report.py        # M7 dry-run/apply/rollback CLI
 │   ├── process_behavior_report.py
 │   ├── process_report.py
-│   ├── recommendation_report.py      # M6 text/JSON report
+│   ├── recommendation_report.py
 │   └── root_cause_report.py
 ├── tests/
 │   ├── test_m1_integration.py
@@ -115,21 +139,22 @@ python -m compileall -q .
 │   ├── test_m3_integration.py
 │   ├── test_m4_integration.py
 │   ├── test_m5_integration.py
-│   └── test_m6_integration.py
+│   ├── test_m6_integration.py
+│   └── test_m7_integration.py
 ├── utils/
 ├── main.py
 └── requirements.txt
 ```
 
-## How M6 works
+## How M7 works
 
-M6 consumes the evidence already produced by earlier milestones instead of creating a second monitoring pipeline.
+M7 does not trust an M6 recommendation merely because it exists. An automatic action must pass an independent safety policy. The current policy accepts only sustained runaway-process cases with strong evidence, a sufficiently high impact score, a stable process identity, and a non-protected target.
 
-It considers capacity pressure, M4 root-cause confidence, M5 anomalies, sustained runaway process instances, and current process I/O share/rate. Recommendations are deduplicated and ranked by priority.
+The only automatic mutation is a bounded reduction in process scheduling priority. Before mutation, M7 captures the previous priority as a rollback token. If a later action in the same transaction fails, earlier actions are rolled back in reverse order.
 
-Each recommendation includes safety metadata and an impact estimate. The impact score is an evidence-weighted opportunity score, **not a guaranteed speedup**. Exact performance gain is intentionally not claimed because storage hardware has different performance ceilings.
+Successful actions are written to a JSONL optimization journal so the latest active session can be explicitly rolled back later. Before rollback, process identity is checked again to avoid modifying a reused PID.
 
-M6 is advisory only: `automation_eligible` is false and `automatic_changes_applied` is false. Automated mitigation, rollback, and safety enforcement belong to M7.
+Default behavior is dry-run. `--apply` is required to make a system change. On POSIX, actual apply is refused unless the process has enough privilege to restore the original niceness during rollback.
 
 ## Roadmap
 
@@ -160,15 +185,17 @@ M6 is advisory only: `automation_eligible` is false and `automatic_changes_appli
 
 ### M6 — Recommendation Engine ✅
 - Optimization recommendations
-- Recommendation ranking and safety metadata
+- Ranking and safety metadata
 - Impact estimation
 - Historical persistence
-- Standalone reporting
 
-### M7 — Auto Optimization Engine
-- Automated mitigation
+### M7 — Auto Optimization Engine ✅
+- Safety-gated automated mitigation
 - Rollback protection
-- Safety checks
+- Live process identity and protected-process checks
+- Durable optimization journal
+- Dry-run/apply separation
+- Integration testing
 
 ### M8 — Alerting & Notifications
 - Real-time alerts

@@ -35,11 +35,32 @@ RUNAWAY_PROCESS_SAMPLES = 3
 RUNAWAY_PROCESS_SHARE_PERCENT = 60.0
 RUNAWAY_PROCESS_MIN_RATE_BYTES_PER_SECOND = 1_048_576.0
 
-# M6 recommendation and impact-estimation defaults.
+# M6 recommendation-engine defaults.
 RECOMMENDATION_MAX_ITEMS = 5
-RECOMMENDATION_MIN_ROOT_CAUSE_CONFIDENCE = 35.0
-RECOMMENDATION_MEDIUM_IMPACT_SCORE = 40.0
+RECOMMENDATION_MIN_ROOT_CAUSE_CONFIDENCE = 55.0
 RECOMMENDATION_HIGH_IMPACT_SCORE = 70.0
+RECOMMENDATION_MEDIUM_IMPACT_SCORE = 40.0
+
+# M7 automatic-optimization defaults.
+# Execution is opt-in: the M7 CLI is dry-run unless --apply is supplied.
+AUTO_OPTIMIZATION_ENABLED = False
+AUTO_OPTIMIZATION_MAX_ACTIONS = 1
+AUTO_OPTIMIZATION_MIN_IMPACT_SCORE = 65.0
+AUTO_OPTIMIZATION_PRIORITY_STEP = 5
+OPTIMIZATION_JOURNAL_FILE = "logs/optimization_journal.jsonl"
+AUTO_OPTIMIZATION_DENYLIST = (
+    "system",
+    "systemd",
+    "init",
+    "kernel_task",
+    "launchd",
+    "smss.exe",
+    "csrss.exe",
+    "wininit.exe",
+    "services.exe",
+    "lsass.exe",
+    "winlogon.exe",
+)
 
 # Backward-compatible name used by earlier versions.
 REFRESH_INTERVAL = REFRESH_INTERVAL_SECONDS
