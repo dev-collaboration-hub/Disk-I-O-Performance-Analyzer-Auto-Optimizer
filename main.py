@@ -1,25 +1,50 @@
 """Command-line entry point for M1-M8 disk monitoring and analysis."""
 
 from __future__ import annotations
+
 import argparse
+
 from config.settings import (
-    ALERT_COOLDOWN_SECONDS, ALERT_FILE, ALERT_RETENTION_RECORDS,
-    EVENT_RETENTION_RECORDS, EVENT_TIMELINE_FILE, HISTORY_FILE,
-    HISTORY_RETENTION_RECORDS, IO_SAMPLE_INTERVAL_SECONDS,
-    MINIMUM_PROCESS_IO_BYTES, REFRESH_INTERVAL_SECONDS,
-    SPIKE_IO_MIN_BYTES_PER_SECOND, SPIKE_IO_MULTIPLIER,
-    SPIKE_USAGE_DELTA_PERCENT, TOP_PROCESS_LIMIT,
+    ALERT_COOLDOWN_SECONDS,
+    ALERT_FILE,
+    ALERT_RETENTION_RECORDS,
+    EVENT_RETENTION_RECORDS,
+    EVENT_TIMELINE_FILE,
+    HISTORY_FILE,
+    HISTORY_RETENTION_RECORDS,
+    IO_SAMPLE_INTERVAL_SECONDS,
+    MINIMUM_PROCESS_IO_BYTES,
+    REFRESH_INTERVAL_SECONDS,
+    SPIKE_IO_MIN_BYTES_PER_SECOND,
+    SPIKE_IO_MULTIPLIER,
+    SPIKE_USAGE_DELTA_PERCENT,
+    TOP_PROCESS_LIMIT,
 )
 from reporting.cli_dashboard import run_dashboard
 
 
 def build_parser() -> argparse.ArgumentParser:
-    parser = argparse.ArgumentParser(description="M1-M8 disk monitoring, analysis, optimization and alerts.")
-    parser.add_argument("--path", action="append", dest="paths")
+    parser = argparse.ArgumentParser(
+        description=(
+            "Monitor disk capacity and system/process I/O, retain metrics "
+            "history, detect spikes, explain likely bottlenecks, analyze "
+            "process behavior, persist recommendations, and emit M8 alerts."
+        )
+    )
+    parser.add_argument(
+        "--path",
+        action="append",
+        dest="paths",
+        help="Disk or mount path to monitor. Repeat for multiple paths.",
+    )
     parser.add_argument("--refresh-interval", type=float, default=REFRESH_INTERVAL_SECONDS)
     parser.add_argument("--sample-interval", type=float, default=IO_SAMPLE_INTERVAL_SECONDS)
     parser.add_argument("--process-limit", type=int, default=TOP_PROCESS_LIMIT)
-    parser.add_argument("--minimum-process-io-bytes", type=int, default=MINIMUM_PROCESS_IO_BYTES)
+    parser.add_argument(
+        "--minimum-process-io-bytes",
+        type=int,
+        default=MINIMUM_PROCESS_IO_BYTES,
+    )
     parser.add_argument("--hide-processes", action="store_true")
     parser.add_argument("--history-file", default=HISTORY_FILE)
     parser.add_argument("--event-file", default=EVENT_TIMELINE_FILE)
@@ -28,7 +53,11 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--no-history", action="store_true")
     parser.add_argument("--spike-usage-delta", type=float, default=SPIKE_USAGE_DELTA_PERCENT)
     parser.add_argument("--spike-io-multiplier", type=float, default=SPIKE_IO_MULTIPLIER)
-    parser.add_argument("--spike-io-minimum-rate", type=float, default=SPIKE_IO_MIN_BYTES_PER_SECOND)
+    parser.add_argument(
+        "--spike-io-minimum-rate",
+        type=float,
+        default=SPIKE_IO_MIN_BYTES_PER_SECOND,
+    )
     parser.add_argument("--alert-file", default=ALERT_FILE)
     parser.add_argument("--alert-retention", type=int, default=ALERT_RETENTION_RECORDS)
     parser.add_argument("--alert-cooldown", type=float, default=ALERT_COOLDOWN_SECONDS)
