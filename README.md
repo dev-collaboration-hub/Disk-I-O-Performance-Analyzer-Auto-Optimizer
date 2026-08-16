@@ -1,6 +1,10 @@
 # Disk I/O Performance Analyzer & Auto Optimizer
 
-A cross-platform diagnostics project for monitoring disk capacity, system-wide I/O, active process disk consumers, historical activity, likely root causes, process-behavior anomalies, evidence-backed optimization recommendations, safety-gated reversible mitigation, proactive alerts, and historical analytics.
+A cross-platform diagnostics project for monitoring disk capacity, system-wide I/O, active process disk consumers, historical activity, likely root causes, process-behavior anomalies, evidence-backed optimization recommendations, safety-gated reversible mitigation, proactive alerts, historical analytics, and production packaging.
+
+## Release status
+
+**Stable source version: 1.0.0**
 
 ## Milestone status
 
@@ -13,17 +17,18 @@ A cross-platform diagnostics project for monitoring disk capacity, system-wide I
 - **M7 — Auto Optimization Engine: complete**
 - **M8 — Alerting & Notifications: complete**
 - **M9 — Reporting & Analytics: complete**
+- **M10 — Production Release: complete**
 
-M9 adds:
+M10 adds:
 
-- disk-usage trend analysis with change and slope
-- system I/O average, median, P95, peak, and trend
-- retained top-process consumer analytics
-- anomaly/runaway occurrence aggregation
-- alert lifecycle and recovery-time analytics
-- M7 optimization journal outcome analytics
-- retention-aware text and JSON reports
-- M9 integration tests
+- PEP 517 installable packaging through `pyproject.toml`
+- stable version metadata (`1.0.0`)
+- installed console commands for monitoring, alerts, analytics, optimization, and recommendations
+- Python 3.10–3.13 CI test matrix
+- wheel/source-distribution build validation
+- tag-triggered GitHub release workflow
+- production deployment, security, changelog, and release-check documentation
+- release-specific integration tests
 
 Completion reports:
 
@@ -36,81 +41,105 @@ Completion reports:
 - [`docs/M7_COMPLETION.md`](docs/M7_COMPLETION.md)
 - [`docs/M8_COMPLETION.md`](docs/M8_COMPLETION.md)
 - [`docs/M9_COMPLETION.md`](docs/M9_COMPLETION.md)
+- [`docs/M10_COMPLETION.md`](docs/M10_COMPLETION.md)
 
-## Quick start
+## Install
+
+From a checked-out release:
+
+```bash
+python -m pip install .
+```
+
+Development/source install remains supported:
 
 ```bash
 python -m pip install -r requirements.txt
 python main.py
 ```
 
-One snapshot without clearing the terminal:
+Installed commands:
 
 ```bash
-python main.py --once --no-clear
+disk-io-analyzer --help
+disk-io-alerts --help
+disk-io-analytics --help
+disk-io-optimize --help
+disk-io-recommendations --help
 ```
 
-Use custom history files:
+## Common workflows
+
+One monitoring snapshot:
 
 ```bash
-python main.py --once --no-clear \
-  --history-file logs/my-history.jsonl \
-  --event-file logs/my-events.jsonl
+disk-io-analyzer --once --no-clear
 ```
 
-Inspect historical activity:
+Historical activity:
 
 ```bash
 python -m reporting.history_report --limit 20
 ```
 
-Inspect M6 recommendations:
+M6 recommendations:
 
 ```bash
-python -m reporting.recommendation_report
+disk-io-recommendations
 ```
 
 M7 safe optimization:
 
 ```bash
-python -m reporting.optimization_report
-python -m reporting.optimization_report --apply
-python -m reporting.optimization_report --rollback-last
+disk-io-optimize
+disk-io-optimize --apply
+disk-io-optimize --rollback-last
 ```
 
-Inspect M8 alerts:
+M8 alerts:
 
 ```bash
-python -m reporting.alert_report
-python -m reporting.alert_report --active
-python -m reporting.alert_report --json
+disk-io-alerts
+disk-io-alerts --active
+disk-io-alerts --json
 ```
 
-Generate the M9 analytics report:
+M9 analytics:
 
 ```bash
-python -m reporting.analytics_report
-python -m reporting.analytics_report --limit 2000 --top-processes 15
-python -m reporting.analytics_report --json
+disk-io-analytics
+disk-io-analytics --limit 2000 --top-processes 15
+disk-io-analytics --json
 ```
 
-## How M8 alerting works
+## M7 safety boundary
 
-M8 consumes evidence already produced by earlier milestones instead of creating another sampler.
+Automatic optimization is deliberately narrow. M7 is dry-run by default and only applies safety-approved, reversible process-priority mitigation after process identity and protected-process checks. It does not automatically delete files, terminate/suspend processes, stop services, alter security configuration, tune databases, or change storage-device settings.
 
-Each active condition has a stable alert key. First observation emits `TRIGGERED`; higher severity emits `ESCALATED`; unchanged conditions are suppressed during cooldown and can later emit `REMINDER`; when an evaluated condition disappears M8 emits `RECOVERED`.
+## M8 alerting
 
-Alert history is stored independently in `logs/alerts.jsonl`. Missing telemetry does not count as recovery. M7 actual apply/failure/rollback outcomes are also recorded in the M8 stream; dry-run planning is not reported as an executed action.
+M8 emits stateful `TRIGGERED`, `ESCALATED`, `REMINDER`, and `RECOVERED` events from M1–M6 evidence and records actual M7 apply/failure/rollback outcomes. Missing telemetry is not treated as recovery.
 
-## How M9 analytics works
+## M9 analytics
 
-M9 is an on-demand reporting layer, so the live monitoring loop does not repeatedly scan historical files.
+M9 is on-demand and retention-aware. It summarizes retained M3 monitoring snapshots, M8 alert history, and M7 optimization journal records without repeatedly scanning history in the live monitoring loop.
 
-The report consumes retained M3 monitoring snapshots, M8 alert history, and the M7 optimization journal. It summarizes disk-capacity trends, system I/O distributions, observed top process consumers, detection frequencies, alert lifecycle outcomes, recovery timing, and optimization actions.
+## Production release validation
 
-Trend slope uses timestamps when enough valid timestamps exist. P95 uses deterministic standard-library interpolation. Process analytics are intentionally labeled as **retained top-consumer observations** because M2 stores the ranked active subset rather than every process on the machine.
+Run the source release gate before publishing:
 
-M9 is retention-aware: reports describe the records that still exist in the configured JSONL stores, not an implied all-time history.
+```bash
+python scripts/release_check.py
+```
+
+Build distributions:
+
+```bash
+python -m pip install build
+python -m build
+```
+
+See [`docs/PRODUCTION_DEPLOYMENT.md`](docs/PRODUCTION_DEPLOYMENT.md) and [`docs/RELEASE_CHECKLIST.md`](docs/RELEASE_CHECKLIST.md).
 
 ## Tests
 
@@ -123,59 +152,21 @@ python -m compileall -q .
 
 ```text
 .
-├── alerts/
-│   ├── alert_engine.py
-│   ├── alert_store.py
-│   └── notifier.py
-├── analytics/
-│   ├── history_analytics.py          # M9 disk/system-I/O trends
-│   ├── outcome_analytics.py          # M9 alert/M7 outcome analytics
-│   └── process_analytics.py          # M9 process-consumer aggregates
-├── analysis/
-│   ├── anomaly_detector.py
-│   ├── bottleneck_detector.py
-│   ├── cause_classifier.py
-│   ├── confidence_engine.py
-│   ├── impact_estimator.py
-│   ├── process_profiler.py
-│   ├── recommendation_engine.py
-│   ├── runaway_detector.py
-│   ├── spike_detector.py
-│   └── timeline_builder.py
-├── config/settings.py
-├── docs/
-│   ├── M1_COMPLETION.md
-│   ├── M2_COMPLETION.md
-│   ├── M3_COMPLETION.md
-│   ├── M4_COMPLETION.md
-│   ├── M5_COMPLETION.md
-│   ├── M6_COMPLETION.md
-│   ├── M7_COMPLETION.md
-│   ├── M8_COMPLETION.md
-│   └── M9_COMPLETION.md
-├── monitoring/
-├── optimizer/
-├── reporting/
-│   ├── alert_report.py
-│   ├── analytics_report.py           # M9 text/JSON analytics CLI
-│   ├── cli_dashboard.py
-│   ├── history_report.py
-│   ├── optimization_report.py
-│   ├── process_behavior_report.py
-│   ├── process_report.py
-│   ├── recommendation_report.py
-│   └── root_cause_report.py
-├── tests/
-│   ├── test_m1_integration.py
-│   ├── test_m2_integration.py
-│   ├── test_m3_integration.py
-│   ├── test_m4_integration.py
-│   ├── test_m5_integration.py
-│   ├── test_m6_integration.py
-│   ├── test_m7_integration.py
-│   ├── test_m8_integration.py
-│   └── test_m9_integration.py
+├── .github/workflows/                 # CI and tag release automation
+├── alerts/                            # M8 alerting
+├── analytics/                         # M9 analytics
+├── analysis/                          # M4-M6 diagnosis/recommendation logic
+├── config/                            # runtime settings + stable version
+├── docs/                              # milestone and production documentation
+├── monitoring/                        # M1-M3 monitoring
+├── optimizer/                         # M7 safety-gated optimization
+├── reporting/                         # dashboard and report CLIs
+├── scripts/release_check.py           # M10 release gate
+├── tests/                             # M1-M10 tests
+├── CHANGELOG.md
+├── SECURITY.md
 ├── main.py
+├── pyproject.toml
 └── requirements.txt
 ```
 
@@ -190,26 +181,17 @@ python -m compileall -q .
 ### M7 — Auto Optimization Engine ✅
 ### M8 — Alerting & Notifications ✅
 ### M9 — Reporting & Analytics ✅
+### M10 — Production Release ✅
 
-- Trend analysis
-- Disk usage analytics
-- System I/O distribution reporting
-- Process-consumer analytics
-- Alert/recovery analytics
-- Optimization outcome analytics
-- Text and JSON reports
-
-### M10 — Production Release
-- Packaging
-- Stable release
-- Production documentation
+The M1–M10 implementation roadmap is complete.
 
 ## Technology
 
 - Python 3.10+
 - `psutil`
 - `unittest`
-- Standard-library JSONL persistence and statistics
+- standard-library JSONL persistence/statistics
+- PEP 517 / setuptools packaging
 
 ## License
 

@@ -1,0 +1,51 @@
+[build-system]
+requires = ["setuptools>=69", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "disk-io-performance-analyzer-auto-optimizer"
+version = "1.0.0"
+description = "Cross-platform disk I/O monitoring, diagnostics, analytics, alerting, and safety-gated optimization."
+readme = "README.md"
+requires-python = ">=3.10"
+dependencies = ["psutil>=5.9"]
+authors = [{ name = "Dev Collaboration Hub" }]
+keywords = ["disk-io", "monitoring", "performance", "diagnostics", "optimization"]
+classifiers = [
+  "Development Status :: 5 - Production/Stable",
+  "Environment :: Console",
+  "Intended Audience :: Developers",
+  "Intended Audience :: System Administrators",
+  "Operating System :: OS Independent",
+  "Programming Language :: Python :: 3",
+  "Programming Language :: Python :: 3.10",
+  "Programming Language :: Python :: 3.11",
+  "Programming Language :: Python :: 3.12",
+  "Programming Language :: Python :: 3.13",
+  "Topic :: System :: Monitoring",
+  "Topic :: System :: Systems Administration",
+]
+
+[project.scripts]
+disk-io-analyzer = "main:main"
+disk-io-alerts = "reporting.alert_report:main"
+disk-io-analytics = "reporting.analytics_report:main"
+disk-io-optimize = "reporting.optimization_report:main"
+disk-io-recommendations = "reporting.recommendation_report:main"
+
+[tool.setuptools]
+py-modules = ["main"]
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = [
+  "alerts*",
+  "analytics*",
+  "analysis*",
+  "config*",
+  "monitoring*",
+  "optimizer*",
+  "reporting*",
+  "utils*",
+]
+exclude = ["tests*", "docs*", "logs*"]
