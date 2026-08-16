@@ -1,6 +1,6 @@
 # Disk I/O Performance Analyzer & Auto Optimizer
 
-A cross-platform diagnostics project for monitoring disk capacity, system-wide I/O, active process disk consumers, historical disk activity, likely root causes, and process-behavior anomalies.
+A cross-platform diagnostics project for monitoring disk capacity, system-wide I/O, active process disk consumers, historical activity, likely root causes, process-behavior anomalies, and evidence-backed optimization recommendations.
 
 ## Milestone status
 
@@ -9,17 +9,19 @@ A cross-platform diagnostics project for monitoring disk capacity, system-wide I
 - **M3 — Historical Data Collection: complete**
 - **M4 — Root Cause Detection Engine: complete**
 - **M5 — Process Behavior Analysis: complete**
+- **M6 — Recommendation Engine: complete**
 
-M5 adds:
+M6 adds:
 
-- bounded historical process profiling
-- per-process rate/share baselines
-- baseline-aware anomaly detection
-- sustained runaway-process detection
-- PID + creation-time identity protection
-- integrated M5 dashboard output
-- M5 results persisted with monitoring snapshots
-- M5 regression and integration tests
+- ranked evidence-backed optimization recommendations
+- M4 root-cause + M5 behavior integration
+- cause-specific manual actions
+- recommendation safety metadata
+- conservative impact scoring
+- low-confidence gating
+- recommendation persistence in new snapshots
+- standalone text/JSON recommendation reports
+- M6 integration tests
 
 Completion reports:
 
@@ -28,6 +30,7 @@ Completion reports:
 - [`docs/M3_COMPLETION.md`](docs/M3_COMPLETION.md)
 - [`docs/M4_COMPLETION.md`](docs/M4_COMPLETION.md)
 - [`docs/M5_COMPLETION.md`](docs/M5_COMPLETION.md)
+- [`docs/M6_COMPLETION.md`](docs/M6_COMPLETION.md)
 
 ## Quick start
 
@@ -50,33 +53,23 @@ python main.py --once --no-clear \
   --event-file logs/my-events.jsonl
 ```
 
-Disable historical persistence:
-
-```bash
-python main.py --once --no-clear --no-history
-```
-
-M5 still profiles the current sample with history disabled, but it does not claim a historical anomaly or runaway until enough prior evidence exists.
-
 Inspect historical activity:
 
 ```bash
 python -m reporting.history_report --limit 20
 ```
 
-Machine-readable historical report:
+Inspect M6 recommendations:
 
 ```bash
-python -m reporting.history_report --json
+python -m reporting.recommendation_report
 ```
 
-Standalone current process report:
+Machine-readable M6 report:
 
 ```bash
-python -m reporting.process_report --limit 10 --sample-interval 1
+python -m reporting.recommendation_report --json
 ```
-
-Use `python main.py --help` for process, retention, logging, and spike-threshold options.
 
 ## Tests
 
@@ -90,151 +83,102 @@ python -m compileall -q .
 ```text
 .
 ├── analysis/
-│   ├── anomaly_detector.py           # M5 baseline-aware anomaly detection
-│   ├── bottleneck_detector.py        # M4 bottleneck evidence engine
-│   ├── cause_classifier.py           # M4 process-to-cause rules
-│   ├── confidence_engine.py          # Root-cause confidence scoring
-│   ├── process_profiler.py           # M5 historical behavior profiles
-│   ├── runaway_detector.py           # M5 sustained same-process detection
-│   ├── spike_detector.py             # M3 capacity and I/O spike detection
-│   └── timeline_builder.py           # Structured persistent event timeline
-├── config/settings.py                # M1-M5 runtime defaults
+│   ├── anomaly_detector.py
+│   ├── bottleneck_detector.py
+│   ├── cause_classifier.py
+│   ├── confidence_engine.py
+│   ├── impact_estimator.py           # M6 impact opportunity estimate
+│   ├── process_profiler.py
+│   ├── recommendation_engine.py      # M6 ranked recommendations
+│   ├── runaway_detector.py
+│   ├── spike_detector.py
+│   └── timeline_builder.py
+├── config/settings.py                # M1-M6 runtime defaults
 ├── docs/
 │   ├── M1_COMPLETION.md
 │   ├── M2_COMPLETION.md
 │   ├── M3_COMPLETION.md
 │   ├── M4_COMPLETION.md
-│   └── M5_COMPLETION.md
-├── logs/                              # Runtime JSONL files
+│   ├── M5_COMPLETION.md
+│   └── M6_COMPLETION.md
 ├── monitoring/
-│   ├── disk_capacity.py
-│   ├── disk_detector.py
-│   ├── disk_monitor.py
-│   ├── disk_stats.py
-│   ├── metrics_snapshot.py           # Versioned unified metrics snapshot
-│   ├── process_detector.py
-│   ├── process_io_monitor.py
-│   └── top_disk_consumers.py
 ├── reporting/
-│   ├── cli_dashboard.py              # Integrated M5 dashboard
+│   ├── cli_dashboard.py
 │   ├── history_report.py
-│   ├── process_behavior_report.py    # Structured M5 analysis/reporting
+│   ├── process_behavior_report.py
 │   ├── process_report.py
-│   └── root_cause_report.py          # Structured M4 analysis/reporting
+│   ├── recommendation_report.py      # M6 text/JSON report
+│   └── root_cause_report.py
 ├── tests/
 │   ├── test_m1_integration.py
 │   ├── test_m2_integration.py
 │   ├── test_m3_integration.py
 │   ├── test_m4_integration.py
-│   └── test_m5_integration.py
+│   ├── test_m5_integration.py
+│   └── test_m6_integration.py
 ├── utils/
-│   ├── history_manager.py
-│   └── logger.py
 ├── main.py
 └── requirements.txt
 ```
 
-## How M3 history works
+## How M6 works
 
-Each monitoring cycle creates a versioned snapshot containing disk metrics, system I/O rates, and process-level activity. M3 appends the snapshot to `metrics_history.jsonl`; it does not rewrite the complete history on every cycle.
+M6 consumes the evidence already produced by earlier milestones instead of creating a second monitoring pipeline.
 
-Before storing a new snapshot, M3 compares it with the most recent stored snapshot. Meaningful changes become structured events in `event_timeline.jsonl`, including spikes, threshold transitions, collection warnings, and top disk-consumer changes.
+It considers capacity pressure, M4 root-cause confidence, M5 anomalies, sustained runaway process instances, and current process I/O share/rate. Recommendations are deduplicated and ranked by priority.
 
-Malformed or incomplete JSONL records are skipped during reads, so an interrupted final write does not make earlier history unusable. Retention limits prevent indefinite growth.
+Each recommendation includes safety metadata and an impact estimate. The impact score is an evidence-weighted opportunity score, **not a guaranteed speedup**. Exact performance gain is intentionally not claimed because storage hardware has different performance ceilings.
 
-## How M4 root-cause detection works
-
-M4 does not assume that high raw throughput automatically means a bottleneck because storage devices have different performance ceilings. Instead, it combines independent evidence:
-
-1. **Capacity pressure** — warning or critical disk-space utilization.
-2. **Process I/O dominance** — one process owns a configurable share of active process disk I/O.
-3. **Recent spike evidence** — M3 detected a disk-usage or throughput spike.
-4. **Sustained activity** — the same process remains dominant across recent snapshots.
-
-The root-cause report classifies the process when possible, assigns severity and confidence, keeps the evidence visible, and produces a conservative recommendation.
-
-## How M5 process behavior analysis works
-
-M5 analyzes the already-collected top process consumers instead of adding another sampler.
-
-For each current process it can build a recent profile containing median/average/max I/O rate, I/O share, read/write mix, dominance frequency, trend, and burst ratio.
-
-An anomaly requires an established per-process baseline. The current sample can be flagged when its rate grows by a configurable multiple of its own historical median or its I/O share jumps materially above its own median.
-
-A runaway requires stronger evidence: the same process **instance** must stay above both the configured rate and share thresholds for consecutive samples. Identity uses process name + PID + creation time so PID reuse does not create false continuity.
-
-M5 is diagnostic only. It does not kill, pause, throttle, or reconfigure processes.
+M6 is advisory only: `automation_eligible` is false and `automatic_changes_applied` is false. Automated mitigation, rollback, and safety enforcement belong to M7.
 
 ## Roadmap
 
 ### M1 — Disk Monitoring Foundation ✅
-
 - System-wide disk monitoring
 - Read/write statistics
-- Logging infrastructure
-- CLI dashboard
-- Integration testing
+- Logging and CLI
 
 ### M2 — Process-Level Disk Analysis ✅
-
 - Process enumeration
-- Per-process disk I/O tracking
-- Top consumer identification
-- Dashboard and process report
-- Integration testing
+- Per-process disk I/O
+- Top consumer ranking
 
 ### M3 — Historical Data Collection ✅
-
 - Metrics history
 - Event timeline
-- Disk spike recording
-- Retention and recovery
-- Historical report
-- Integration testing
+- Spike detection
 
 ### M4 — Root Cause Detection Engine ✅
-
 - Cause classification
 - Bottleneck identification
-- Root-cause reporting
-- Confidence and evidence
-- Historical-context integration
-- Dashboard integration
-- Integration testing
+- Confidence/evidence reporting
 
 ### M5 — Process Behavior Analysis ✅
-
 - Process profiling
 - Baseline-aware anomaly detection
 - Runaway process detection
-- Same-instance identity protection
-- Historical persistence
-- Dashboard integration
-- Integration testing
 
-### M6 — Recommendation Engine
-
+### M6 — Recommendation Engine ✅
 - Optimization recommendations
+- Recommendation ranking and safety metadata
 - Impact estimation
+- Historical persistence
+- Standalone reporting
 
 ### M7 — Auto Optimization Engine
-
 - Automated mitigation
 - Rollback protection
 - Safety checks
 
 ### M8 — Alerting & Notifications
-
 - Real-time alerts
 - Event notifications
 
 ### M9 — Reporting & Analytics
-
 - Trend analysis
 - Usage reports
 
 ### M10 — Production Release
-
 - Packaging
 - Stable release
 - Production documentation

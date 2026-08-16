@@ -40,8 +40,6 @@ def analyze_process_behavior(
     *,
     recent_history: list[dict[str, Any]] | None = None,
 ) -> dict[str, Any]:
-    """Build M5 profiles and detect anomalies/runaway process instances."""
-
     history = _analysis_history(snapshot, recent_history)
     profiles = build_process_profiles(
         history,
@@ -94,6 +92,10 @@ def attach_process_behavior_analysis(
         recent_history=recent_history,
     )
     snapshot["process_behavior"] = report
+
+    from reporting.recommendation_report import attach_recommendation_analysis
+
+    attach_recommendation_analysis(snapshot)
     return report
 
 
