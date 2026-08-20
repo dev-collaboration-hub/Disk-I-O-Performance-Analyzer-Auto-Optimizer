@@ -14,43 +14,13 @@ from datetime import datetime
 from enum import Enum
 from typing import Protocol, runtime_checkable
 
+from .errors import CollectorError, CollectorErrorCode
 from .models import DiskDevice, DiskSample, ProcessIO
 
 
 class PlatformKind(str, Enum):
     WINDOWS = "windows"
     LINUX = "linux"
-
-
-class CollectorErrorCode(str, Enum):
-    UNSUPPORTED = "UNSUPPORTED"
-    PERMISSION_DENIED = "PERMISSION_DENIED"
-    UNAVAILABLE = "UNAVAILABLE"
-    INVALID_DATA = "INVALID_DATA"
-    IO_ERROR = "IO_ERROR"
-
-
-class CollectorError(RuntimeError):
-    """Explicit failure crossing a platform collector boundary."""
-
-    def __init__(
-        self,
-        code: CollectorErrorCode,
-        operation: str,
-        message: str,
-        *,
-        platform: PlatformKind | None = None,
-    ) -> None:
-        if not operation or not operation.strip():
-            raise ValueError("operation must be non-empty")
-        if not message or not message.strip():
-            raise ValueError("message must be non-empty")
-
-        self.code = code
-        self.operation = operation
-        self.platform = platform
-        self.detail = message
-        super().__init__(f"{code.value}: {operation}: {message}")
 
 
 def detect_platform(system_name: str | None = None) -> PlatformKind:
