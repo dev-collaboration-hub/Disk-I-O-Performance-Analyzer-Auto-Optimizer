@@ -2,14 +2,20 @@
 
 from .collectors import (
     CollectorBundle,
-    CollectorError,
-    CollectorErrorCode,
     DiskCapacityCollector,
     DiskDiscoveryCollector,
     DiskIOCollector,
     PlatformKind,
     ProcessIOCollector,
     detect_platform,
+)
+from .configuration import DEFAULT_CONFIG, RuntimeConfig, load_json_config
+from .errors import (
+    CollectorError,
+    CollectorErrorCode,
+    ConfigurationError,
+    CoreError,
+    CoreErrorCode,
 )
 from .models import (
     Diagnosis,
@@ -29,6 +35,10 @@ __all__ = [
     "CollectorBundle",
     "CollectorError",
     "CollectorErrorCode",
+    "ConfigurationError",
+    "CoreError",
+    "CoreErrorCode",
+    "DEFAULT_CONFIG",
     "Diagnosis",
     "DiskCapacityCollector",
     "DiskDevice",
@@ -44,6 +54,8 @@ __all__ = [
     "ProcessIdentity",
     "Recommendation",
     "RiskLevel",
+    "RuntimeConfig",
     "Severity",
     "detect_platform",
+    "load_json_config",
 ]
